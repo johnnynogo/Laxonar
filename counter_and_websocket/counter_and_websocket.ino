@@ -337,6 +337,7 @@ void loop() {
     server.handleClient();  // Handle HTTP requests
 
     long duration, distance;
+
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
@@ -353,6 +354,7 @@ void loop() {
     }
 
     delay(100);
+
     if (currentState != previousState) {
         if (currentState == 1) {
             counter++;
@@ -366,37 +368,40 @@ void loop() {
                 // Send counter + timestamp to WebSocket clients
                 String message = String(counter) + " | " + String(timeString);
                 webSocket.broadcastTXT(message);
+
+                // FIREBASE CODE
+                if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 5000 || sendDataPrevMillis == 0)) {
+                    sendDataPrevMillis = millis();
+                
+                    String counterStr = String(counter);
+                    String dateTimeStr = String(timeString); // Convert timeString to String
+
+                    // Creates a unique key for each data entry
+                    String dataHolderKey = String(millis()); // Using millis() for a more robust unique key
+
+                    FirebaseJson jsonData;
+                    jsonData.set("counter", counterStr);
+                    jsonData.set("time", dateTimeStr);
+                    String jsonString;
+
+                    // Setting the data in the database with a unique key
+                    if (Firebase.RTDB.setJSON(&fbdo, "Sensor/" + dataHolderKey, &jsonData)) {
+                        Serial.println("");
+                        jsonData.toString(jsonString, false); // Converting JSON object to string
+                        Serial.print(jsonString);
+                        Serial.print(" - successfully saved to: Sensor/" + dataHolderKey);
+                        Serial.println(" (" + fbdo.dataType() + ")");
+                    } else {
+                        Serial.println("Failed to save data to database. FAILED: " + fbdo.errorReason());
+                    }
+                }
             } else {
                 Serial.println("Failed to get time.");
             }
         }
+        previousState = currentState;
     }
-    previousState = currentState;
-
-    // FIREBASE CODE
-    if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 5000 || sendDataPrevMillis == 0)) {
-        sendDataPrevMillis = millis();
-    
-        String counterStr = String(counter);
-        String dateTimeStr = String(timeString); // Convert timeString to String
-    
-        if(Firebase.RTDB.setString(&fbdo, "Sensor/counter", counterStr)) {
-            Serial.println(); Serial.print(counterStr);
-            Serial.print(" - successfully saved to:" + fbdo.dataPath());
-            Serial.println(" (" + fbdo.dataType() + ")");
-        } else {
-            Serial.println("FAILED: " + fbdo.errorReason());
-        }
-    
-        if(Firebase.RTDB.setString(&fbdo, "Sensor/timeString", dateTimeStr)) {
-            Serial.println(); Serial.print(dateTimeStr);
-            Serial.print(" - successfully saved to:" + fbdo.dataPath());
-            Serial.println(" (" + fbdo.dataType() + ")");
-        } else {
-            Serial.println("FAILED: " + fbdo.errorReason());
-        }
-    }
-    
-
-    // FUNCTIONS: set, setInt, setFloat, setDouble, setString, setJSON, setArray, setBlob, setFile
 }
+
+
+// FUNCTIONS: set, setInt, setFloat, setDouble, setString, setJSON, setArray, setBlob, setFile
