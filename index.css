@@ -109,28 +109,28 @@ body {
   }
 
 .boxOne {
-  background-color: rgba(243, 241, 239, 1);
+  background-color: red;
   width: 50%;
   height: 50%;
   float: left;
 }
 
 .boxTwo {
-  background-color: rgba(253, 241, 239, 1);
+  background-color: green;
   width: 50%;
   height: 50%;
   float: right;
 }
 
 .boxThree {
-  background-color: rgba(263, 241, 239, 1);
+  background-color: blue;
   width: 50%;
   height: 50%;
   float: left;
 }
 
 .boxFour {
-  background-color: rgba(273, 241, 239, 1);
+  background-color:yellow;
   width: 50%;
   height: 50%;
   float: right;

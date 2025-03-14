@@ -157,28 +157,32 @@ body {
   }
 
 .boxOne {
-  background-color: rgba(243, 241, 239, 1);
+  /* background-color: rgba(243, 241, 239, 1); */
+  background-color: red;
   width: 50%;
   height: 50%;
   float: left;
 }
 
 .boxTwo {
-  background-color: rgba(253, 241, 239, 1);
+  /* background-color: rgba(253, 241, 239, 1); */
+  background-color: green;
   width: 50%;
   height: 50%;
   float: right;
 }
 
 .boxThree {
-  background-color: rgba(263, 241, 239, 1);
+  /* background-color: rgba(263, 241, 239, 1); */
+  background-color: blue;
   width: 50%;
   height: 50%;
   float: left;
 }
 
 .boxFour {
-  background-color: rgba(273, 241, 239, 1);
+  /* background-color: rgba(273, 241, 239, 1); */
+  background-color: yellow;
   width: 50%;
   height: 50%;
   float: right;
@@ -201,6 +205,7 @@ body {
         <div class="backdrop" style="background-image: url(https://stiimaquacluster.no/wp-content/uploads/2023/03/Nautilus_komplett_illustrasjon_1_JR_2023_v2_16-9.png);" role="img"></div>
         <div class="inner-front-page">
             <div class="live-number-title">Live sensor data: <span class="blinking-dot">&nbsp;</span></div>
+            <br>
             <p id="sensorData">Waiting for data...</p>
         </div>
     </section>
