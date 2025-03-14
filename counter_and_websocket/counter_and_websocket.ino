@@ -2,12 +2,18 @@
 #include <WebSocketsServer.h>
 #include "time.h"
 #include <WebServer.h> // Include WebServer library
+#include <Firebase_ESP_Client.h>
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
 
-#define trigPin 9
-#define echoPin 10
+
+#define trigPin 17
+#define echoPin 16
 
 const char* ssid = "1234";      // Change to your WiFi SSID
 const char* password = "hayday123";  // Change to your WiFi Password
+#define API_KEY "AIzaSyBT6acRzfEP8qXoRaP5F78WjD7fuMo0bTA"
+#define DATABASE_URL "https://esp32-laxonar-test-default-rtdb.europe-west1.firebasedatabase.app/"
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3600;
@@ -19,6 +25,16 @@ WebServer server(80); // HTTP server on port 80
 int counter = 0;
 int currentState = 0;
 int previousState = 0;
+
+// Three Firebase objects
+FirebaseData fbdo; // Handles data when there is a change on a database node
+FirebaseAuth auth; // Needed for authentication
+FirebaseConfig config; // Needed for config
+
+char timeString[30]; // Buffer to hold formatted time
+unsigned long sendDataPrevMillis = 0;
+bool signupOK = false;
+String dateTime = "";
 
 const char* htmlContent = R"rawliteral(
 <!DOCTYPE html>
@@ -300,6 +316,20 @@ void setup() {
 
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP()); // Prints the IP address
+
+    config.api_key = API_KEY;
+    config.database_url = DATABASE_URL;
+    // Note that "", "" is because we have anonymous authentication in Firebase settings
+    if(Firebase.signUp(&config, &auth, "", "")) {
+        Serial.println("Signup OK");
+        signupOK = true;
+    } else {
+        Serial.printf("%s\n", config.signer.signupError.message.c_str());
+    }
+
+    config.token_status_callback = tokenStatusCallback;
+    Firebase.begin(&config, &auth);
+    Firebase.reconnectWiFi(true);
 }
 
 void loop() {
@@ -330,7 +360,6 @@ void loop() {
             // Get and print the current time
             struct tm timeinfo;
             if (getLocalTime(&timeinfo)) {
-                char timeString[30]; // Buffer to hold formatted time
                 strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", &timeinfo);
                 Serial.printf("Counter: %d, Time: %s\n", counter, timeString);
 
@@ -343,4 +372,31 @@ void loop() {
         }
     }
     previousState = currentState;
+
+    // FIREBASE CODE
+    if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 5000 || sendDataPrevMillis == 0)) {
+        sendDataPrevMillis = millis();
+    
+        String counterStr = String(counter);
+        String dateTimeStr = String(timeString); // Convert timeString to String
+    
+        if(Firebase.RTDB.setString(&fbdo, "Sensor/counter", counterStr)) {
+            Serial.println(); Serial.print(counterStr);
+            Serial.print(" - successfully saved to:" + fbdo.dataPath());
+            Serial.println(" (" + fbdo.dataType() + ")");
+        } else {
+            Serial.println("FAILED: " + fbdo.errorReason());
+        }
+    
+        if(Firebase.RTDB.setString(&fbdo, "Sensor/timeString", dateTimeStr)) {
+            Serial.println(); Serial.print(dateTimeStr);
+            Serial.print(" - successfully saved to:" + fbdo.dataPath());
+            Serial.println(" (" + fbdo.dataType() + ")");
+        } else {
+            Serial.println("FAILED: " + fbdo.errorReason());
+        }
+    }
+    
+
+    // FUNCTIONS: set, setInt, setFloat, setDouble, setString, setJSON, setArray, setBlob, setFile
 }
