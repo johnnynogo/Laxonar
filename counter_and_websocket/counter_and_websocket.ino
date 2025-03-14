@@ -370,8 +370,8 @@ void loop() {
                 webSocket.broadcastTXT(message);
 
                 // FIREBASE CODE
-                if (Firebase.ready() && signupOK && (millis() - sendDataPrevMillis > 5000 || sendDataPrevMillis == 0)) {
-                    sendDataPrevMillis = millis();
+                if (Firebase.ready() && signupOK) {
+                    // sendDataPrevMillis = millis(); // No longer needed as we dont want update every 5 seconds
                 
                     String counterStr = String(counter);
                     String dateTimeStr = String(timeString); // Convert timeString to String
