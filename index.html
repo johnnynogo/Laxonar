@@ -9,7 +9,7 @@
 
     <body>
         <header id="fixedHeader">
-            <h2>Laxonar</h2>
+            <h2 class="zilap-font">Laxonar</h2>
         </header> 
 
         <!-- Section 1: Cover Image -->
@@ -76,6 +76,23 @@
                 Grown man shit, du må trekke ned to ganger <br> -->
             </h2>
         </main>
+
+        <!-- Section 3: Fish Detection History -->
+         <section class="content">
+            <h2>Fish Detection History</h2>
+            <div class="fish-history-container">
+                <table id="fishHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Detection #</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="fishHistoryBody"> <!-- Data will automatically be updated in here --></tbody>
+                </table>
+            </div>
+         </section>
 
 
         <script src="index.js"></script>

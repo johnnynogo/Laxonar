@@ -64,6 +64,11 @@ body {
   box-sizing: border-box; /* Prevents padding from affecting width */
 }
 
+@font-face {
+  font-family: 'zilmar'; /*a name to be used later*/
+  src: url(ZilapMarine.ttf); /*URL to font*/
+}
+
 /* ************************************************* */
 /* HEADER START */
 
@@ -76,6 +81,12 @@ body {
   background: white;
   opacity: 0.9;
   z-index: 1000;
+}
+
+.zilap-font {
+  font-family: 'zilmar';
+  font-size: 50px;
+  color: black;
 }
 
 /* HEADER END */
@@ -118,11 +129,11 @@ body {
 }
 
 .blinking-dot {
-  --blinking-dot-size: 50px;
+  --blinking-dot-size: 35px;
   --blinking-dot-speed: 2s;
 
   position: absolute;
-  top: 12%;
+  top: 13%;
   left: 100%;
   display: inline-block;
   width: var(--blinking-dot-size);
@@ -188,6 +199,37 @@ body {
   float: right;
 }
 
+/* FISH HISTORY SECTION START */
+.fish-history-container {
+  margin-top: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#fishHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+#fishHistoryTable th, #fishHistoryTable td {
+  border: 1px solid black;
+  padding: 8px;
+  text-align: left;
+}
+
+#fishHistoryTable tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+#fishHistoryTable th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  background-color: #4CAF50;
+  color: white;
+}
+/* FISH HISTORY SECTION END */
+
 /* MAIN PAGE END */
 /* ************************************************* */
     </style>
@@ -196,7 +238,7 @@ body {
 
 <body>
     <header id="fixedHeader">
-        <h2>Laxonar</h2>
+        <h2 class="zilap-font">Laxonar</h2>
     </header> 
 
 
@@ -264,12 +306,73 @@ body {
             </h2>
         </main>
 
+        <!-- Section 3: Fish Detection History -->
+         <section class="content">
+            <h2>Fish Detection History</h2>
+            <div class="fish-history-container">
+                <table id="fishHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Detection #</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="fishHistoryBody"> <!-- Data will automatically be updated in here --></tbody>
+                </table>
+            </div>
+         </section>
+
 
     <script>
         let socket = new WebSocket("ws://172.20.10.9:81/");
         socket.onmessage = function(event) {
+          const data = event.data;
+
+          // Handles different types of message types
+          if (data.startsWith("HISTORY,")) {
+            const parts = data.split(",");
+            if (parts.length >= 3) {
+              const counter = parts[1];
+              const timestamp = parts.slice(2).join(',');
+              addHistoryEntry(counter, timestamp);
+            }
+          } else if (data === "CLEAR_HISTORY") {
+            document.getElementById("fishHistoryBody").innerHTML = "";
+          } else {
             document.getElementById("sensorData").innerText = "Sensor Value: " + event.data;
+          }
+            // When we get a new detection, request the updated history
+            requestHistoryUpdate();
         };
+
+        // This function requests history from ESP32
+        function requestHistoryUpdate() {
+        socket.send("REQUEST_HISTORY");
+        } 
+
+        // Function to add a new entry to the history table
+        function addHistoryEntry(counter, timestamp) {
+        const tableBody = document.getElementById("fishHistoryBody");
+        const newRow = document.createElement("tr");
+
+        const counterCell = document.createElement("td");
+        counterCell.textContent = counter;
+
+        const timeCell = document.createElement("td");
+        timeCell.textContent = timestamp;
+
+        newRow.appendChild(counterCell);
+        newRow.appendChild(timeCell);
+
+        // Insert at the beginning for newest entries at the top
+        tableBody.insertBefore(newRow, tableBody.firstChild);
+        }
+
+        // Inital history request when page loads.
+        window.onload = function() {
+        setTimeout(requestHistoryUpdate, 1000); // Slight delay to ensure connection is established
+        }
     </script>
 
 
@@ -277,6 +380,8 @@ body {
 
 </html>
 )rawliteral";
+
+const int MAX_HISTORY_ITEMS = 200; // The limit of numbers to retrieve
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
     switch (type) {
@@ -289,6 +394,53 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
         case WStype_TEXT:
             Serial.printf("Received: %s\n", payload);
             break;
+    }
+}
+
+void sendHistoryToClient(uint8_t clientNum) {
+    if (Firebase.ready() && signupOK) {
+        Serial.println("Fetching history data from Firebase...");
+
+        if (Firebase.RTDB.getJSON(&fbdo, "Sensor")) {
+            if (fbdo.dataType() == "json") {
+                FirebaseJson &json = fbdo.jsonObject();
+                size_t len = json.iteratorBegin();
+                FirebaseJson::IteratorValue value;
+                int count = 0;
+
+                webSocket.sendTXT(clientNum, "CLEAR_HISTORY"); // Sends a message to clear the current history table
+
+                // Function that processes each entry in Firebase JSON data
+                for (size_t i = 0; i < len && count < MAX_HISTORY_ITEMS; i++) {
+                    value = json.valueAt(i);
+
+                    if (value.type == FirebaseJson::JSON_OBJECT) {
+                        FirebaseJson entryJson;
+                        FirebaseJsonData counterData;
+                        FirebaseJsonData timeData;
+
+                        entryJson.setJsonData(value.value); // This will parse the entry into a new JSON object
+
+                        // Want to extract the counter and time values
+                        entryJson.get(counterData, "counter");
+                        entryJson.get(timeData, "time");
+                        
+                        if(counterData.success && timeData.success) {
+                            // Format the message to: HISTORY,counter,timestamp
+                            String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeData.stringValue;
+                            webSocket.sendTXT(clientNum, historyMsg);
+                            count++;
+                        }
+                    }
+                }
+
+                json.iteratorEnd();
+                Serial.printf("Sent %d history items to client\n", count);
+
+            }
+        } else {
+            Serial.println("Failed to get history data from Firebase" + fbdo.errorReason());
+        }
     }
 }
 
@@ -402,6 +554,10 @@ void loop() {
                 }
             } else {
                 Serial.println("Failed to get time.");
+            }
+
+            for (uint8_t i = 0; i < webSocket.connectedClients(); i++) {
+                sendHistoryToClient(i);
             }
         }
         previousState = currentState;

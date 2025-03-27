@@ -16,6 +16,11 @@ body {
   box-sizing: border-box; /* Prevents padding from affecting width */
 }
 
+@font-face {
+  font-family: 'zilmar'; /*a name to be used later*/
+  src: url(ZilapMarine.ttf); /*URL to font*/
+}
+
 /* ************************************************* */
 /* HEADER START */
 
@@ -28,6 +33,12 @@ body {
   background: white;
   opacity: 0.9;
   z-index: 1000;
+}
+
+.zilap-font {
+  font-family: 'zilmar';
+  font-size: 50px;
+  color: black;
 }
 
 /* HEADER END */
@@ -70,11 +81,11 @@ body {
 }
 
 .blinking-dot {
-  --blinking-dot-size: 50px;
+  --blinking-dot-size: 35px;
   --blinking-dot-speed: 2s;
 
   position: absolute;
-  top: 12%;
+  top: 13%;
   left: 100%;
   display: inline-block;
   width: var(--blinking-dot-size);
@@ -135,6 +146,37 @@ body {
   height: 50%;
   float: right;
 }
+
+/* FISH HISTORY SECTION START */
+.fish-history-container {
+  margin-top: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#fishHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+#fishHistoryTable th, #fishHistoryTable td {
+  border: 1px solid black;
+  padding: 8px;
+  text-align: left;
+}
+
+#fishHistoryTable tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+#fishHistoryTable th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  background-color: #4CAF50;
+  color: white;
+}
+/* FISH HISTORY SECTION END */
 
 /* MAIN PAGE END */
 /* ************************************************* */
