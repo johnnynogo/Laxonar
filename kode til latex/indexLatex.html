@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Laxonar</title>
+        <link rel="stylesheet" href="index.css">
+    </head>
+
+    <body>
+        <header id="fixedHeader">
+            <h2 class="zilap-font">Laxonar</h2>
+        </header> 
+
+        <!-- Section 1: Cover Image -->
+        <section>
+            <div class="backdrop" style="background-image: url(https://stiimaquacluster.no/wp-content/uploads/2023/03/Nautilus_komplett_illustrasjon_1_JR_2023_v2_16-9.png);" role="img"></div>
+
+            <div class="inner-front-page">
+                <div class="live-number-title">Live Sensor Data <span class="blinking-dot">&nbsp;</span></div>
+                <br>
+                <p id="sensorData">Waiting for data...</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Main Content -->
+        <main class="content">
+            <div class="boxOne">En</div>    
+            <div class="boxTwo">To</div>    
+            <div class="boxThree">Tre</div>    
+            <div class="boxFour">Fire</div>
+
+            <br>
+            
+        </main>
+
+        <!-- Section 3: Fish Detection History -->
+         <section class="content">
+            <h2>Fish Detection History</h2>
+            <div class="fish-history-container">
+                <table id="fishHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Detection #</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="fishHistoryBody"> <!-- Data will automatically be updated in here --></tbody>
+                </table>
+            </div>
+         </section>
+
+
+        <script src="index.js"></script>
+    </body>
+</html>

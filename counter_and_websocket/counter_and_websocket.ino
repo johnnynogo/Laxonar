@@ -5,6 +5,7 @@
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
+#include <SPIFFS.h>
 
 
 #define trigPin 17
@@ -66,7 +67,7 @@ body {
 
 @font-face {
   font-family: 'zilmar'; /*a name to be used later*/
-  src: url(ZilapMarine.ttf); /*URL to font*/
+  src: url(\ZilapMarine.ttf); /*URL to font*/
 }
 
 /* ************************************************* */
@@ -469,7 +470,6 @@ void setup() {
     server.on("/", HTTP_GET, []() {
         server.send(200, "text/html", htmlContent);
     });
-    server.begin();
 
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP()); // Prints the IP address
@@ -487,6 +487,25 @@ void setup() {
     config.token_status_callback = tokenStatusCallback;
     Firebase.begin(&config, &auth);
     Firebase.reconnectWiFi(true);
+
+    // Initialize SPIFFS for font
+    if(!SPIFFS.begin(true)){
+        Serial.println("An Error has occurred while mounting SPIFFS");
+        return;
+    }
+
+    // Serve the font file
+    server.on("/ZilapMarine.ttf", HTTP_GET, []() {
+        File fontFile = SPIFFS.open("/ZilapMarine.ttf", "r");
+        if(fontFile){
+            server.streamFile(fontFile, "font/ttf");
+            fontFile.close();
+        } else {
+            server.send(404, "text/plain", "Font file not found");
+        }
+    });
+
+    server.begin();
 }
 
 void loop() {
