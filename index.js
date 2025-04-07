@@ -11,7 +11,7 @@ function myFunction() {
     }
   }
 
-let socket = new WebSocket("ws://172.20.10.9:81/");
+let socket = new WebSocket("ws://172.20.10.10:81/");
         socket.onmessage = function(event) {
           const data = event.data;
 
