@@ -6,6 +6,9 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 #include <SPIFFS.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <LiquidCrystal_I2C.h> // May not need this one as we do not display on any LCD
 
 
 #define trigPin 17
@@ -23,9 +26,11 @@ const int daylightOffset_sec = 0;
 WebSocketsServer webSocket = WebSocketsServer(81); // WebSocket server on port 81
 WebServer server(80); // HTTP server on port 80
 
+
 int counter = 0;
 int currentState = 0;
 int previousState = 0;
+
 
 // Three Firebase objects
 FirebaseData fbdo; // Handles data when there is a change on a database node
@@ -36,6 +41,15 @@ char timeString[30]; // Buffer to hold formatted time
 unsigned long sendDataPrevMillis = 0;
 bool signupOK = false;
 String dateTime = "";
+
+
+// URL endpoint for API
+String URL = "https://api.openweathermap.org/data/2.5/weather?lat=63.7101&lon=8.5602&appid=66c2342087c98b327aefd3764035bcb4";
+String ApiKey = "66c2342087c98b327aefd3764035bcb4";
+// Credentials for Salmar Froya 
+String lon = "8.5602"; // 8.560392549727782 is the full longitude
+String lat = "63.7101"; // 63.710132834995264 is the full latitude
+
 
 const char* htmlContent = R"rawliteral(
 <!DOCTYPE html>
@@ -330,6 +344,24 @@ body {
         socket.onmessage = function(event) {
           const data = event.data;
 
+          try {
+            // Try to parse as JSON first
+            const jsonData = JSON.parse(data);
+            
+            if (jsonData.type === "weather") {
+              // Handle weather data
+              document.getElementById('weather-description').textContent = jsonData.description;
+              document.getElementById('weather-temp').textContent = jsonData.temperature + " °C";
+              document.getElementById('weather-humidity').textContent = jsonData.humidity + " %";
+            }
+          } catch (e) {
+            // If it's not JSON, assume it's the counter data in your original format
+            const counterData = data.split(" | ");
+            document.getElementById('counter').textContent = counterData[0];
+            document.getElementById('timestamp').textContent = counterData[1];
+          }
+        };
+
           // Handles different types of message types
           if (data.startsWith("HISTORY,")) {
             const parts = data.split(",");
@@ -581,7 +613,59 @@ void loop() {
         }
         previousState = currentState;
     }
-}
 
+    // Code for weather
+    // wait for WiFi connection
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+
+      //Set HTTP Request Final URL with Location and API key information
+      http.begin(URL + "lat=" + lat + "&lon=" + lon + "&units=metric&appid=" + ApiKey);
+
+      // start connection and send HTTP Request
+      int httpCode = http.GET();
+
+      // httpCode will be negative on error
+      if (httpCode > 0) {
+        //Read Data as a JSON string
+        String JSON_Data = http.getString();
+        Serial.println(JSON_Data);
+
+        //Retrieve some information about the weather from the JSON format
+        DynamicJsonDocument doc(2048);
+        deserializeJson(doc, JSON_Data);
+        JsonObject obj = doc.as<JsonObject>();
+
+        //Get the weather data
+        const char* description = obj["weather"][0]["description"].as<const char*>();
+        const float temp = obj["main"]["temp"].as<float>();
+        const float humidity = obj["main"]["humidity"].as<float>();
+
+        // Create a JSON object to send via WebSocket instead of LCD display
+        DynamicJsonDocument weatherJson(256);
+        weatherJson["type"] = "weather";
+        weatherJson["description"] = description;
+        weatherJson["temperature"] = temp;
+        weatherJson["humidity"] = humidity;
+        
+        // Convert to string
+        String weatherMessage;
+        serializeJson(weatherJson, weatherMessage);
+        
+        // Send to all connected WebSocket clients
+        webSocket.broadcastTXT(weatherMessage);
+        
+        // For debugging
+        Serial.println("Weather data sent to clients: " + weatherMessage);
+      } else {
+        Serial.println("Error fetching weather data!");
+      }
+
+      http.end();
+    }
+
+    // You can reduce this delay if you want more frequent updates
+    delay(60000);
+}
 
 // FUNCTIONS: set, setInt, setFloat, setDouble, setString, setJSON, setArray, setBlob, setFile

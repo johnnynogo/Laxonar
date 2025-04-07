@@ -21,6 +21,21 @@ body {
   src: url(ZilapMarine.ttf); /*URL to font, note: in .ino there is backslash - \ZilapMarine.ttf */ 
 }
 
+@font-face {
+  font-family: 'helveticaNeue';
+  src: url(HelveticaNeue-Roman.otf);
+}
+
+@font-face {
+  font-family: 'NeueHaas';
+  src: url(NeueHaasDisplayRoman.ttf);
+}
+
+@font-face {
+  font-family: 'NeueHaasBold';
+  src: url(NeueHaasDisplayBold.ttf);
+}
+
 /* ************************************************* */
 /* HEADER START */
 
@@ -62,42 +77,83 @@ body {
 
 .inner-front-page {
   position: absolute;
-  top: 500px;
-  left: 40%;
+  top: 400px;
+  left: 37%;
   margin-top: 76px;
   padding-block-start: 0;
   padding-inline: 16px;
 }
 
 .live-number-title {
+  text-align: center;
   color: white;
-  font-size: 50px;
-  font-weight: bold;
+  font-size: 30px;
+  font-family: 'NeueHaas';
+  /* font-weight: bold; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
 #sensorData {
   color: white;
-  font-size: 30px;
+  font-size: 60px;
+  font-family: 'NeueHaasBold';
+  text-align: center;
 }
 
 .blinking-dot {
-  --blinking-dot-size: 35px;
-  --blinking-dot-speed: 2s;
+  --blinking-dot-size: 15px;
+  --blinking-dot-speed: 1s;
 
-  position: absolute;
-  top: 13%;
-  left: 100%;
-  display: inline-block;
+  /* display: inline-block; */
+  position: relative;
   width: var(--blinking-dot-size);
   height: var(--blinking-dot-size);
   background-color: red; /* Change color as needed */
   border-radius: 50%; /* Makes it a circle */
+  /* min-width: calc(var(--blinking-dot-size) * 2); */
 
   animation: blink-animation var(--blinking-dot-speed) infinite alternate;
 }
 
+.blinking-dot::before {
+  content: '';
+  position:absolute;
+  top: 0;
+  left: 0;
+  /* display: inline-block; */
+  width: var(--blinking-dot-size);
+  height: var(--blinking-dot-size);
+  background-color: red; /* Change color as needed */
+  border-radius: 50%; /* Makes it a circle */
+}
+
+.blinking-dot::after {
+  content: '';
+  position:absolute;
+  top: -2px;
+  left: -2px;
+  display: inline-block;
+  width: calc(var(--blinking-dot-size) * 1.25);
+  height: calc(var(--blinking-dot-size) * 1.25);
+  background-color: red; /* Change color as needed */
+  border-radius: 50%; /* Makes it a circle */
+  animation: pulse 1000ms infinite;
+}
+
+@keyframes pulse {
+  0% { 
+  transform: scale(1); 
+  opacity: 1; }
+  100% {
+    transform: scale(1.5); 
+    opacity: 0; }
+  }
+
 @keyframes blink-animation {
-  0% {
+  60% {
     opacity: 1;
   }
   100% {
@@ -177,6 +233,76 @@ body {
   color: white;
 }
 /* FISH HISTORY SECTION END */
+
+/* WEATHER DISPLAY START */
+#weather-container {}
+
+#weather-description {}
+
+#weather-temp {}
+
+#weather-humidity {}
+/* WEATHER DISPLAY END */
+
+/* FOOTER START */
+/* footer {
+  position: absolute;
+  bottom: 0%;
+  left: 0;
+  width: 100%;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+} */
+
+.footer {
+  margin-top: 100px;
+  width: 100%;
+  padding: 100px, 15%;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  background-color: rgba(0, 46, 90, 1); /* rgb(37, 150, 190) */
+  color: black;
+  display: flex;
+  font-family: 'NeueHaas';
+  line-height: 1.65;
+}
+
+.footer div{
+  text-align: center;
+}
+
+.memberName, h3{
+  color: white;
+  font-family: 'NeueHaasBold';
+}
+
+.footer a {
+  color: white;
+  font-family: 'NeueHaas';
+}
+
+.NeueHaas {
+  color: white;
+  font-family: 'NeueHaas';
+}
+
+.col2 {
+  flex: 0.25;
+}
+
+.col4 {
+  flex: 0.25;
+}
+
+.col6 {
+  flex: 0.25;
+}
+
+.col7 {
+  flex: 0.25;
+}
+/* FOOTER END */
 
 /* MAIN PAGE END */
 /* ************************************************* */
