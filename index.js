@@ -59,3 +59,9 @@ function addHistoryEntry(counter, timestamp) {
 window.onload = function() {
   setTimeout(requestHistoryUpdate, 1000); // Slight delay to ensure connection is established
 }
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+      document.getElementById('page-nav-toggle').checked = false;
+  });
+});

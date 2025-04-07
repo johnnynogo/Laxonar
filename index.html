@@ -8,8 +8,41 @@
     </head>
 
     <body>
+
+        <!-- Section ???: Menu Bar -->
+        <input id="page-nav-toggle" class="main-navigation-toggle" type="checkbox" />
+        <label for="page-nav-toggle">
+          <svg class="icon--menu-toggle" viewBox="0 0 60 30">
+            <g class="icon-group">
+              <g class="icon--menu">
+                <path d="M 6 0 L 54 0" />
+                <path d="M 6 15 L 54 15" />
+                <path d="M 6 30 L 54 30" />
+              </g>
+              <g class="icon--close">
+                <path d="M 15 0 L 45 30" />
+                <path d="M 15 30 L 45 0" />
+              </g>
+            </g>
+          </svg>
+        </label>
+        
+        <nav class="main-navigation">
+          <ul>
+            <li><a href="#0" class="nav-link">Visuals</a></li>
+            <li><a href="#0" class="nav-link">2</a></li>
+            <li><a href="#0" class="nav-link">3</a></li>
+            <li><a href="#footer" class="nav-link">Contact Us</a></li>
+          </ul>
+        </nav>
+
+        <!-- Section ???: Header -->
         <header id="fixedHeader">
-            <h2 class="zilap-font">Laxonar</h2>
+            <a href="index.html" class="logo-container">
+                <img id="logo" src="laxonarLogoOnly.png" alt="Laxonar Logo">
+                <span class="zilap-font">Laxonar</span>
+            </a>
+            <!-- <h2 class="zilap-font">Laxonar</h2> -->
         </header> 
 
         <!-- Section 1: Cover Image -->
@@ -20,9 +53,9 @@
                 <div class="live-number-title">
                     Live Data 
                     <span class="blinking-dot">
-                    </span></div> <!-- &nbsp; -->
+                     </span></div> <!-- &nbsp; -->
                 <br>
-                <p id="sensorData"> Waiting for data... </p>
+                <p id="sensorData"> Waiting for data...</p>
             </div>
         </section>
 
@@ -112,7 +145,7 @@
 
         <!--- Section ???: Footer -->
 
-        <div class="footer">
+        <div class="footer" id="footer">
             <div class="col7">
                 <h3>Laxonar Technologies AS</h3>
                 <p class="NeueHaas">Mortensine, Gamle Elektro</p>
