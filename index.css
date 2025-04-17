@@ -7,7 +7,7 @@ body {
     background-repeat: no-repeat;
     background-size: cover; 
     */
-    background-color: rgba(255, 255, 255);
+    background-color: #F0F7EE;
 }
 
 * {
@@ -42,7 +42,7 @@ body {
 @import url('https://fonts.googleapis.com/css?family=Merriweather:900&display=swap');
 
 :root {
-  --color-primary: #002626;
+  --color-primary: rgba(0, 46, 90, 1);
   --color-secondary: #F0F7EE;
   --duration: 1s;
   --nav-duration: calc(var(--duration) / 4);
@@ -416,34 +416,6 @@ a:link, a:visited, a:hover, a:active {
     /* not opacity: 0.6; as opacity is applied to the entire element and all of its children*/
   }
 
-.boxOne {
-  background-color: red;
-  width: 50%;
-  height: 50%;
-  float: left;
-}
-
-.boxTwo {
-  background-color: green;
-  width: 50%;
-  height: 50%;
-  float: right;
-}
-
-.boxThree {
-  background-color: blue;
-  width: 50%;
-  height: 50%;
-  float: left;
-}
-
-.boxFour {
-  background-color:yellow;
-  width: 50%;
-  height: 50%;
-  float: right;
-}
-
 /* FISH HISTORY SECTION START */
 .fish-history-container {
   margin-top: 20px;
@@ -452,27 +424,47 @@ a:link, a:visited, a:hover, a:active {
 }
 
 #fishHistoryTable {
-  width: 100%;
+  width: 45%;
   border-collapse: collapse;
   margin-bottom: 20px;
 }
 
-#fishHistoryTable th, #fishHistoryTable td {
-  border: 1px solid black;
+#fishHistoryTable th{
+  border: 0.5px solid black;
   padding: 8px;
-  text-align: left;
+  text-align: center;
+  font-family: "neueHaasBold";
+}
+
+.fish-detection-history-title {
+  font-family: "neueHaasBold";
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+#fishHistoryTable td {
+  border: 0.5px solid black;
+  padding: 8px;
+  text-align: center;
+  font-family: "neueHaas";
 }
 
 #fishHistoryTable tr:nth-child(even) {
-  background-color: #f2f2f2;
+  background-color: #F0F7EE;
 }
 
 #fishHistoryTable th {
   padding-top: 12px;
   padding-bottom: 12px;
-  background-color: #4CAF50;
+  background-color: rgba(0, 46, 90, 1);
   color: white;
 }
+
+#fishNumber {
+  width: 100px;
+}
+
+
 /* FISH HISTORY SECTION END */
 
 /* WEATHER DISPLAY START */
@@ -513,7 +505,7 @@ a:link, a:visited, a:hover, a:active {
   text-align: center;
 }
 
-.memberName, h3{
+.memberName, h3 {
   color: white;
   font-family: 'NeueHaasBold';
 }
