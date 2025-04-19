@@ -164,14 +164,34 @@
         </section>
 
         <!-- Section 5: Weather Display -->
-         <section class="content">
-            <h2>The Weather</h2>
-            <div id="weather-container">
-                <p>Description: <span id="weather-description">Loading...</span></p>
-                <p>Temperature: <span id="weather-temp">--</span></p>
-                <p>Humidity: <span id="weather-humidity">--</span></p>
-              </div>
-         </section>
+         <div class="weatherContainer">
+            <h1 id="weatherH1">Complete Weather Dashboard</h1>
+            <div class="weatherColumn">
+                <h2 id="weatherH2">Current Weather</h2>
+                <div class="weatherRow"><span class="label">Main: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Description: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Temperature: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Feels like: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Humidity: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Sea level pressure: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Ground level pressure: </span><span class="value"></span></div>
+            </div>
+            <div class="weatherColumn">
+                <h2 id="weatherH2">Other</h2>
+                <div class="weatherRow"><span class="label">Wind speed: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Wind direction: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Wind gust: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Cloudiness: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Visibility: </span><span class="value"></span></div>
+            </div>
+            <div class="weatherColumn">
+                <h2 id="weatherH2">Location Information</h2>
+                <div class="weatherRow"><span class="label">Time: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">City: </span><span class="value"></span></div>
+                <div class="weatherRow"><span class="label">Country: </span><span class="value"></span></div>
+            </div>
+            <p class='status'>Last update: </p>
+         </div>
 
          <!-- Section 6: Graf -->
          <section>

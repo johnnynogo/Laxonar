@@ -54,13 +54,6 @@ body {
   --line-height: 1.5;
 }
 
-h1 {
-  margin-bottom: calc(var(--space) * 3);
-  font-family: var(--font-heading);
-  font-size: calc(var(--font-size) + 6vmin);
-  line-height: calc(var(--line-height) / 1.25);
-}
-
 .main-navigation-toggle {
   position: fixed;
   height: 1px; 
@@ -468,13 +461,72 @@ a:link, a:visited, a:hover, a:active {
 /* FISH HISTORY SECTION END */
 
 /* WEATHER DISPLAY START */
-#weather-container {}
 
-#weather-description {}
+.weatherContainer {
+  width: 100%;
+  margin: 0 auto;
+  background-color: white; 
+  border-radius: 10px; 
+  padding: 20px; 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
 
-#weather-temp {}
+#weatherH1 {
+  font-family: "neueHaasBold";
+  color: rgba(0, 46, 90, 1);
+  font-size: 30px;
+  margin-bottom: 10px;
+  text-align: center;
+}
 
-#weather-humidity {}
+#weatherH2 {
+  font-family: "neueHaasBold";
+  color: rgba(0, 46, 90, 1);
+  font-size: 20px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.weatherColumn {
+  margin: 20px 0; 
+  padding: 15px; 
+  border-radius: 8px; 
+  /* background-color: #e6f2ff; */
+  float: left;
+  width: 33.33%;
+}
+
+.weatherContainer:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.weatherRow {
+  display: flex; 
+  justify-content: space-between; 
+  margin: 8px 0; 
+  padding: 5px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.label {
+  font-family: "neueHaasBold"; 
+  /* color: #0066cc; */
+}
+
+.value { 
+  font-family: "neueHaas";
+}
+
+.status { 
+  margin-top: 20px; 
+  font-style: italic; 
+  color: #666; 
+  text-align: center; 
+}
+
+
 /* WEATHER DISPLAY END */
 
 /* FOOTER START */
