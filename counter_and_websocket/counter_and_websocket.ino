@@ -374,7 +374,7 @@ body {
           } else if (data === "CLEAR_HISTORY") {
             document.getElementById("fishHistoryBody").innerHTML = "";
           } else {
-            document.getElementById("sensorData").innerText = "Sensor Value: " + event.data;
+            document.getElementById("sensorData").innerText = "Fish No.: " + event.data;
           }
             // When we get a new detection, request the updated history
             requestHistoryUpdate();
