@@ -18,10 +18,11 @@ let socket = new WebSocket("ws://172.20.10.10:81/");
           // Handles different types of message types
           if (data.startsWith("HISTORY,")) {
             const parts = data.split(",");
-            if (parts.length >= 3) {
-              const counter = parts[1];
-              const timestamp = parts.slice(2).join(',');
-              addHistoryEntry(counter, timestamp);
+            if (parts.length >= 4) {
+              const counter = parts[1].trim();
+              const time = parts[2].trim();
+              const date = parts[3].trim();
+              addHistoryEntry(counter, time, date);
             }
           } else if (data === "CLEAR_HISTORY") {
             document.getElementById("fishHistoryBody").innerHTML = "";
@@ -38,7 +39,7 @@ function requestHistoryUpdate() {
 } 
 
 // Function to add a new entry to the history table
-function addHistoryEntry(counter, timestamp) {
+function addHistoryEntry(counter, time, date) {
   const tableBody = document.getElementById("fishHistoryBody");
   const newRow = document.createElement("tr");
 
@@ -46,10 +47,15 @@ function addHistoryEntry(counter, timestamp) {
   counterCell.textContent = counter;
 
   const timeCell = document.createElement("td");
-  timeCell.textContent = timestamp;
+  timeCell.textContent = time;
+
+  const dateCell = document.createElement("td");
+  dateCell.textContent = date;
+
 
   newRow.appendChild(counterCell);
   newRow.appendChild(timeCell);
+  newRow.appendChild(dateCell);
 
   // Insert at the beginning for newest entries at the top
   tableBody.insertBefore(newRow, tableBody.firstChild);

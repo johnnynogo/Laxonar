@@ -813,8 +813,9 @@ const char* htmlContent = R"rawliteral(
                         <thead>
                             <tr>
                                 <th id="fishNumber">Fish no.</th>
-                                <th>Date & Time</th>
-                            </tr>
+                                <th>Time</th>
+                                <th>Date</th>
+                                </tr>
 
                             <!-- Random scrollable -->
                             <!-- <tr>
@@ -976,10 +977,11 @@ const char* htmlContent = R"rawliteral(
                     // Handles different types of message types
                     if (data.startsWith("HISTORY,")) {
                         const parts = data.split(",");
-                        if (parts.length >= 3) {
-                        const counter = parts[1];
-                        const timestamp = parts.slice(2).join(',');
-                        addHistoryEntry(counter, timestamp);
+                        if (parts.length >= 4) {
+                        const counter = parts[1].trim();
+                        const time = parts[2].trim();
+                        const date = parts[3].trim();
+                        addHistoryEntry(counter, time, date);
                         }
                     } else if (data === "CLEAR_HISTORY") {
                         document.getElementById("fishHistoryBody").innerHTML = "";
@@ -996,7 +998,7 @@ const char* htmlContent = R"rawliteral(
             } 
 
             // Function to add a new entry to the history table
-            function addHistoryEntry(counter, timestamp) {
+            function addHistoryEntry(counter, time, date) {
             const tableBody = document.getElementById("fishHistoryBody");
             const newRow = document.createElement("tr");
 
@@ -1004,10 +1006,14 @@ const char* htmlContent = R"rawliteral(
             counterCell.textContent = counter;
 
             const timeCell = document.createElement("td");
-            timeCell.textContent = timestamp;
+            timeCell.textContent = time;
+
+            const dateCell = document.createElement("td");
+            dateCell.textContent = date;
 
             newRow.appendChild(counterCell);
             newRow.appendChild(timeCell);
+            newRow.appendChild(dateCell);
 
             // Insert at the beginning for newest entries at the top
             tableBody.insertBefore(newRow, tableBody.firstChild);
@@ -1065,16 +1071,18 @@ void sendHistoryToClient(uint8_t clientNum) {
                         FirebaseJson entryJson;
                         FirebaseJsonData counterData;
                         FirebaseJsonData timeData;
+                        FirebaseJsonData dateData;
 
                         entryJson.setJsonData(value.value); // This will parse the entry into a new JSON object
 
                         // Want to extract the counter and time values
                         entryJson.get(counterData, "counter");
                         entryJson.get(timeData, "time");
+                        entryJson.get(dateData, "date");
                         
-                        if(counterData.success && timeData.success) {
-                            // Format the message to: HISTORY,counter,timestamp
-                            String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeData.stringValue;
+                        if(counterData.success && timeData.success && dateData.success) {
+                            // Format the message to: HISTORY,counter,time,date
+                            String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeData.stringValue+ "," + dateData.stringValue;
                             webSocket.sendTXT(clientNum, historyMsg);
                             count++;
                         }
@@ -1184,11 +1192,16 @@ void loop() {
             // Get and print the current time
             struct tm timeinfo;
             if (getLocalTime(&timeinfo)) {
-                strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", &timeinfo);
-                Serial.printf("Counter: %d, Time: %s\n", counter, timeString);
+                // strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", &timeinfo); // EDIT DATE AND TIME
+
+                char dateString[20];
+                char timeString[20];
+                strftime(dateString, sizeof(dateString), "%Y-%m-%d", &timeinfo);
+                strftime(timeString, sizeof(timeString), "%H:%M:%S", &timeinfo);
+                Serial.printf("Counter: %d, Date: %s, Time: %s\n", counter, dateString, timeString);
 
                 // Send counter + timestamp to WebSocket clients
-                String message = String(counter) + " | " + String(timeString);
+                String message = String(counter) + " | " + String(timeString); 
                 webSocket.broadcastTXT(message);
 
                 // FIREBASE CODE
@@ -1196,14 +1209,18 @@ void loop() {
                     // sendDataPrevMillis = millis(); // No longer needed as we dont want update every 5 seconds
                 
                     String counterStr = String(counter);
-                    String dateTimeStr = String(timeString); // Convert timeString to String
+                    String dateStr = String(dateString);
+                    String timeStr = String(timeString);
+                    // String dateTimeStr = String(timeString); // Convert timeString to String // EDIT DATE AND TIME
 
                     // Creates a unique key for each data entry
                     String dataHolderKey = String(millis()); // Using millis() for a more robust unique key
 
                     FirebaseJson jsonData;
                     jsonData.set("counter", counterStr);
-                    jsonData.set("time", dateTimeStr);
+                    jsonData.set("date", dateStr);
+                    jsonData.set("time", timeStr);
+                    // jsonData.set("time", dateTimeStr); // EDIT DATE AND TIME
                     String jsonString;
 
                     // Setting the data in the database with a unique key
