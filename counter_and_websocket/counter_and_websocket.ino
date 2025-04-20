@@ -6,9 +6,8 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 #include <SPIFFS.h>
-// #include <HTTPClient.h>
-// #include <ArduinoJson.h>
-// #include <LiquidCrystal_I2C.h> // May not need this one as we do not display on any LCD
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 
 #define trigPin 17
@@ -43,12 +42,18 @@ bool signupOK = false;
 String dateTime = "";
 
 
-// // URL endpoint for API
+// For implementing weather
 // String URL = "https://api.openweathermap.org/data/2.5/weather?lat=63.7101&lon=8.5602&appid=66c2342087c98b327aefd3764035bcb4";
-// String ApiKey = "66c2342087c98b327aefd3764035bcb4";
-// // Credentials for Salmar Froya 
-// String lon = "8.5602"; // 8.560392549727782 is the full longitude
-// String lat = "63.7101"; // 63.710132834995264 is the full latitude
+String URL = "http://api.openweathermap.org/data/2.5/weather?";
+String ApiKey = "66c2342087c98b327aefd3764035bcb4";
+// Credentials for Salmar Froya 
+String lon = "8.560392549727782"; // 8.560392549727782 is the full longitude
+String lat = "63.710132834995264"; // 63.710132834995264 is the full latitude
+
+DynamicJsonDocument weatherDoc(2048);
+String weatherData = "";
+unsigned long lastWeatherUpdate = 0;
+const unsigned long weatherUpdateInterval = 30000; // 30 seconds
 
 
 const char* htmlContent = R"rawliteral(
@@ -754,55 +759,6 @@ const char* htmlContent = R"rawliteral(
             </div>
         </section>
 
-        <!-- Section 2: Main Content -->
-        <!-- <main class="content"> -->
-            
-            <!-- <h1 class="contentTextHeader">Grown Man Shit - Tøyen Holding</h1> -->
-            <!-- <br> -->
-            <!-- <h2 class="contentText"> -->
-                <!-- [Vers 1: Mest Seff] [Linje 15-18]<br> -->
-
-                <!-- Ja, hør her, ja <br>
-                Det finnes tre nivåer, det er min holdning <br>
-                Dårlig, bra, og Tøyen Holding <br>
-                Har 10k bars i min tekstfil <br>
-                Zebb som et trekkspill <br>
-                Kvinner hyler på en spiller som en skrekkfilm <br>
-                Jeg får alltid godkjent når jeg tapper <br>
-                Hun sa det kiler i tissen når jeg rapper <br>‹
-                Hvert år får vi dyrere uvaner <br>‹
-                Du ser røyken på avstand som en vulkaner når jeg fyrer en cubaner <br>
-                Skriver kun bars i flowtanks <br>‹
-                Le‹gge dе på låta di? No thanks <br>
-                Tom Hanks, greiene dеr har mindre edge enn en steambun <br>
-                Eneste du har fiksa i livet er PornHub Premium <br> -->
-
-                <!-- Please son, hva får deg til å tro du får bli med på skiva? <br>
-                Dama di Anita ser ut som Wiz Khalifa <br>
-                Litt for mye reefa, energidrikk og FIFA <br>
-                Det e'kke min business, men ville bare si fra <br> -->
-
-                <!-- <br>
-                [Vers 2: Fredfades] <br>
-                Fredfades, norsk raps svar på Öde Spildo <br>
-                Beatsa får chicksa til å riste som en dildo <br>
-                Masse folk på pikken, ser ut som monolitten <br>
-                Treogtredve, oppe og dunker som Scottie Pippen <br>
-                Stilen er såpeglatt, har begynt å gå i frakk <br>
-                Blitt rå i sjakk, drikker Fourrier Clos Saint-Jacques <br>
-                På yarden med en magnum, kaller det paint n sip <br>
-                Mens du er på Paint'n Sip med en basic bitch <br>
-                Toxic stemning når vi bro-diner <br>
-                På hytta, bøyer hunkjønn som en norsklærer <br>
-                Min vinkjeller voktes av en rottweiler <br>
-                Mine hoes wilder fordi jeg sponser de med no' Holzweiler <br>
-                Bruker kun skimask når vi skal lage bane <br>
-                Eneste bønnene du pusher er edamame <br>
-                Gir ut fem album før du rekker å lage to sanger <br>
-                Grown man shit, du må trekke ned to ganger <br> -->
-            <!-- </h2> -->
-        <!-- </main> -->
-
         <!-- Section 4: Fish Detection History -->
         <!-- Section 5: Graph -->
          <section class="content">
@@ -815,47 +771,7 @@ const char* htmlContent = R"rawliteral(
                                 <th id="fishNumber">Fish no.</th>
                                 <th>Time</th>
                                 <th>Date</th>
-                                </tr>
-
-                            <!-- Random scrollable -->
-                            <!-- <tr>
-                                <td>Peter</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Lois</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Joe</td>
-                                <td>Swanson</td>
-                            </tr>
-                            <tr>
-                                <td>Peter</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Lois</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Joe</td>
-                                <td>Swanson</td>
-                            </tr>
-                            <tr>
-                                <td>Peter</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Lois</td>
-                                <td>Griffin</td>
-                            </tr>
-                            <tr>
-                                <td>Joe</td>
-                                <td>Swanson</td>
-                            </tr> -->
-                            <!-- Random scrollable -->
-                             
+                                </tr>                             
                         </thead>
 
                         <tbody id="fishHistoryBody"> <!-- Data will automatically be updated in here --></tbody>
@@ -971,26 +887,106 @@ const char* htmlContent = R"rawliteral(
             }
 
             let socket = new WebSocket("ws://172.20.10.10:81/");
-                    socket.onmessage = function(event) {
-                    const data = event.data;
+            socket.onmessage = function(event) {
+            const data = event.data;
 
-                    // Handles different types of message types
-                    if (data.startsWith("HISTORY,")) {
-                        const parts = data.split(",");
-                        if (parts.length >= 4) {
-                        const counter = parts[1].trim();
-                        const time = parts[2].trim();
-                        const date = parts[3].trim();
-                        addHistoryEntry(counter, time, date);
-                        }
-                    } else if (data === "CLEAR_HISTORY") {
-                        document.getElementById("fishHistoryBody").innerHTML = "";
-                    } else {
-                        document.getElementById("sensorData").innerText = "Fish No.: " + event.data;
-                    }
-                        // When we get a new detection, request the updated history
-                        requestHistoryUpdate();
-                    };
+            // Handles different types of message types
+            if (data.startsWith("HISTORY,")) {
+                const parts = data.split(",");
+                if (parts.length >= 4) {
+                const counter = parts[1].trim();
+                const time = parts[2].trim();
+                const date = parts[3].trim();
+                addHistoryEntry(counter, time, date);
+                }
+            } else if (data === "CLEAR_HISTORY") {
+                document.getElementById("fishHistoryBody").innerHTML = "";
+            } else if (data.startsWith("WEATHER_")) {
+                // New weather data handling
+                const parts = data.split(",");
+                if (parts.length >= 2) {
+                    const weatherType = parts[0];
+                    const weatherValue = parts[1];
+                    updateWeatherDisplay(weatherType, weatherValue);
+                }
+            } else {
+                document.getElementById("sensorData").innerText = "Fish No.: " + event.data;
+            }
+                // When we get a new detection, request the updated history
+                if (data.startsWith("HISTORY,") || !data.startsWith("WEATHER_")) {
+                    requestHistoryUpdate();
+                }
+            };
+
+            function updateWeatherDisplay(type, value) {
+                const columns = document.querySelectorAll(".weatherColumn");
+                
+                switch (type) {
+                    case "WEATHER_MAIN":
+                        columns[0].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_DESC":
+                        columns[0].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_TEMP":
+                        columns[0].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_FEELS":
+                        columns[0].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_HUMIDITY":
+                        columns[0].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_SEA_LEVEL":
+                        columns[0].querySelectorAll(".weatherRow")[5].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_GRND_LEVEL":
+                        columns[0].querySelectorAll(".weatherRow")[6].querySelector(".value").textContent = value;
+                        break;
+
+                    case "WEATHER_WIND_SPEED":
+                        columns[1].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_WIND_DEG":
+                        columns[1].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_WIND_GUST":
+                        columns[1].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_CLOUDS":
+                        columns[1].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_VISIBILITY":
+                        columns[1].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
+                        break;
+
+                    case "WEATHER_TIME":
+                        columns[2].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_CITY":
+                        columns[2].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                        break;
+                    case "WEATHER_COUNTRY":
+                        columns[2].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                        break;
+
+                    case "WEATHER_STATUS":
+                        const now = new Date();
+                        const hours = now.getHours().toString().padStart(2, '0');
+                        const minutes = now.getMinutes().toString().padStart(2, '0');
+                        const seconds = now.getSeconds().toString().padStart(2, '0');
+                        const timeString = `${hours}:${minutes}:${seconds}`;
+                        
+                        document.querySelector(".weatherContainer .status").textContent = 
+                            `Last update: ${timeString} (Weather data updated successfully)`;
+                        break;
+                }
+                }
+
+            // Function to request weather data from ESP32
+            function requestWeatherUpdate() {
+                socket.send("REQUEST_WEATHER");
+            }
 
             // This function requests history from ESP32
             function requestHistoryUpdate() {
@@ -1021,7 +1017,13 @@ const char* htmlContent = R"rawliteral(
 
             // Inital history request when page loads.
             window.onload = function() {
-            setTimeout(requestHistoryUpdate, 1000); // Slight delay to ensure connection is established
+                setTimeout(function() {
+                    requestHistoryUpdate();
+                    requestWeatherUpdate();
+                }, 10000); // Slight delay to ensure connection is established
+                
+                // Auto refresh weather data every minute
+                setInterval(requestWeatherUpdate, 60000);
             }
 
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -1036,19 +1038,28 @@ const char* htmlContent = R"rawliteral(
 
 const int MAX_HISTORY_ITEMS = 200; // The limit of numbers to retrieve
 
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
-    switch (type) {
-        case WStype_CONNECTED:
-            Serial.println("Client connected");
-            break;
-        case WStype_DISCONNECTED:
-            Serial.println("Client disconnected");
-            break;
-        case WStype_TEXT:
-            Serial.printf("Received: %s\n", payload);
-            break;
-    }
+
+String getTimeString(long timestamp, long timezone) {
+    // Convert UTC timestamp to local time considering timezone offset
+    unsigned long localTime = timestamp + timezone;
+    
+    // Calculate hours, minutes, seconds
+    int hours = (localTime / 3600) % 24;
+    int minutes = (localTime / 60) % 60;
+    int seconds = localTime % 60;
+    
+    // Format time as HH:MM:SS
+    String timeStr = "";
+    if (hours < 10) timeStr += "0";
+    timeStr += String(hours) + ":";
+    if (minutes < 10) timeStr += "0";
+    timeStr += String(minutes) + ":";
+    if (seconds < 10) timeStr += "0";
+    timeStr += String(seconds);
+    
+    return timeStr;
 }
+
 
 void sendHistoryToClient(uint8_t clientNum) {
     if (Firebase.ready() && signupOK) {
@@ -1098,6 +1109,165 @@ void sendHistoryToClient(uint8_t clientNum) {
         }
     }
 }
+
+
+void sendWeatherToClients() {
+    if (weatherDoc.size() > 0) {
+        // Main weather data
+        if (weatherDoc.containsKey("weather") && weatherDoc["weather"].size() > 0) {
+            String weatherMain = weatherDoc["weather"][0]["main"].as<String>();
+            String weatherDesc = weatherDoc["weather"][0]["description"].as<String>();
+            
+            webSocket.broadcastTXT("WEATHER_MAIN," + weatherMain);
+            webSocket.broadcastTXT("WEATHER_DESC," + weatherDesc);
+        }
+        
+        // Temperature and humidity data
+        if (weatherDoc.containsKey("main")) {
+            if (weatherDoc["main"].containsKey("temp")) {
+                float temp = weatherDoc["main"]["temp"].as<float>();
+                webSocket.broadcastTXT("WEATHER_TEMP," + String(temp, 2) + " °C");
+            }
+            
+            if (weatherDoc["main"].containsKey("feels_like")) {
+                float feelsLike = weatherDoc["main"]["feels_like"].as<float>();
+                webSocket.broadcastTXT("WEATHER_FEELS," + String(feelsLike, 2) + " °C");
+            }
+            
+            if (weatherDoc["main"].containsKey("humidity")) {
+                int humidity = weatherDoc["main"]["humidity"].as<int>();
+                webSocket.broadcastTXT("WEATHER_HUMIDITY," + String(humidity) + "%");
+            }
+            
+            if (weatherDoc["main"].containsKey("sea_level")) {
+                int seaLevel = weatherDoc["main"]["sea_level"].as<int>();
+                webSocket.broadcastTXT("WEATHER_SEA_LEVEL," + String(seaLevel) + " hPa");
+            }
+            
+            if (weatherDoc["main"].containsKey("grnd_level")) {
+                int grndLevel = weatherDoc["main"]["grnd_level"].as<int>();
+                webSocket.broadcastTXT("WEATHER_GRND_LEVEL," + String(grndLevel) + " hPa");
+            }
+        }
+        
+        // Wind data
+        if (weatherDoc.containsKey("wind")) {
+            if (weatherDoc["wind"].containsKey("speed")) {
+                float windSpeed = weatherDoc["wind"]["speed"].as<float>();
+                webSocket.broadcastTXT("WEATHER_WIND_SPEED," + String(windSpeed, 2) + " m/s");
+            }
+            
+            if (weatherDoc["wind"].containsKey("deg")) {
+                int windDeg = weatherDoc["wind"]["deg"].as<int>();
+                webSocket.broadcastTXT("WEATHER_WIND_DEG," + String(windDeg) + "°");
+            }
+            
+            if (weatherDoc["wind"].containsKey("gust")) {
+                float windGust = weatherDoc["wind"]["gust"].as<float>();
+                webSocket.broadcastTXT("WEATHER_WIND_GUST," + String(windGust, 2) + " m/s");
+            }
+        }
+        
+        // Clouds data
+        if (weatherDoc.containsKey("clouds") && weatherDoc["clouds"].containsKey("all")) {
+            int clouds = weatherDoc["clouds"]["all"].as<int>();
+            webSocket.broadcastTXT("WEATHER_CLOUDS," + String(clouds) + "%");
+        }
+        
+        // Visibility data
+        if (weatherDoc.containsKey("visibility")) {
+            float visibility = weatherDoc["visibility"].as<int>() / 1000.0;
+            webSocket.broadcastTXT("WEATHER_VISIBILITY," + String(visibility, 2) + " km");
+        }
+        
+        // Location information
+        if (weatherDoc.containsKey("name")) {
+            String cityName = weatherDoc["name"].as<String>();
+            webSocket.broadcastTXT("WEATHER_CITY," + cityName);
+        }
+        
+        if (weatherDoc.containsKey("sys") && weatherDoc["sys"].containsKey("country")) {
+            String country = weatherDoc["sys"]["country"].as<String>();
+            webSocket.broadcastTXT("WEATHER_COUNTRY," + country);
+        }
+        
+        // Time information
+        if (weatherDoc.containsKey("dt") && weatherDoc.containsKey("timezone")) {
+            long dataTime = weatherDoc["dt"].as<long>();
+            long timezone = weatherDoc["timezone"].as<long>();
+            String dataTimeStr = getTimeString(dataTime, timezone);
+            webSocket.broadcastTXT("WEATHER_TIME," + dataTimeStr);
+        }
+        
+        // Status update
+        webSocket.broadcastTXT("WEATHER_STATUS," + weatherData);
+    }
+}
+
+
+void getWeatherData() {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        
+        // Set HTTP Request Final URL with Location and API key information
+        http.begin(URL + "lat=" + lat + "&lon=" + lon + "&units=metric&appid=" + ApiKey);
+        
+        // Send HTTP GET request
+        int httpCode = http.GET();
+        
+        // httpCode will be negative on error
+        if (httpCode > 0) {
+            // Read Data as a JSON string
+            String JSON_Data = http.getString();
+            Serial.println("Weather data received:");
+            Serial.println(JSON_Data);
+            
+            // Parse JSON
+            deserializeJson(weatherDoc, JSON_Data);
+            
+            // Store successful data retrieval
+            weatherData = "Weather data updated successfully";
+        } else {
+            Serial.println("Error getting weather data");
+            weatherData = "Error fetching weather data";
+        }
+        
+        http.end();
+    } else {
+        weatherData = "WiFi not connected";
+    }
+}
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
+    switch (type) {
+        case WStype_CONNECTED:
+            Serial.println("Client connected");
+            if (weatherDoc.size() > 0) {
+                sendWeatherToClients();
+            }
+            break;
+        case WStype_DISCONNECTED:
+            Serial.println("Client disconnected");
+            break;
+        case WStype_TEXT:
+            Serial.printf("Received: %s\n", payload);
+            String message = String((char*)payload);
+
+            if (message == "REQUEST_HISTORY") {
+                sendHistoryToClient(num);
+            } else if (message == "REQUEST_WEATHER") {
+                // If client specifically requests weather data
+                if (weatherDoc.size() > 0) {
+                    sendWeatherToClients();
+                } else {
+                    getWeatherData();
+                    sendWeatherToClients();
+                }
+            }
+            break;
+    }
+}
+
 
 void setup() {
     Serial.begin(115200);
@@ -1158,6 +1328,8 @@ void setup() {
             server.send(404, "text/plain", "Font file not found");
         }
     });
+
+    getWeatherData();
 
     server.begin();
 }
@@ -1245,58 +1417,10 @@ void loop() {
         previousState = currentState;
     }
 
-    // // Code for weather
-    // // wait for WiFi connection
-    // if (WiFi.status() == WL_CONNECTED) {
-    //   HTTPClient http;
-
-    //   //Set HTTP Request Final URL with Location and API key information
-    //   http.begin(URL + "lat=" + lat + "&lon=" + lon + "&units=metric&appid=" + ApiKey);
-
-    //   // start connection and send HTTP Request
-    //   int httpCode = http.GET();
-
-    //   // httpCode will be negative on error
-    //   if (httpCode > 0) {
-    //     //Read Data as a JSON string
-    //     String JSON_Data = http.getString();
-    //     Serial.println(JSON_Data);
-
-    //     //Retrieve some information about the weather from the JSON format
-    //     DynamicJsonDocument doc(2048);
-    //     deserializeJson(doc, JSON_Data);
-    //     JsonObject obj = doc.as<JsonObject>();
-
-    //     //Get the weather data
-    //     const char* description = obj["weather"][0]["description"].as<const char*>();
-    //     const float temp = obj["main"]["temp"].as<float>();
-    //     const float humidity = obj["main"]["humidity"].as<float>();
-
-    //     // Create a JSON object to send via WebSocket instead of LCD display
-    //     DynamicJsonDocument weatherJson(256);
-    //     weatherJson["type"] = "weather";
-    //     weatherJson["description"] = description;
-    //     weatherJson["temperature"] = temp;
-    //     weatherJson["humidity"] = humidity;
-        
-    //     // Convert to string
-    //     String weatherMessage;
-    //     serializeJson(weatherJson, weatherMessage);
-        
-    //     // Send to all connected WebSocket clients
-    //     webSocket.broadcastTXT(weatherMessage);
-        
-    //     // For debugging
-    //     Serial.println("Weather data sent to clients: " + weatherMessage);
-    //   } else {
-    //     Serial.println("Error fetching weather data!");
-    //   }
-
-    //   http.end();
-    // }
-
-    // // You can reduce this delay if you want more frequent updates
-    // delay(60000);
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastWeatherUpdate >= weatherUpdateInterval) {
+        getWeatherData();
+        sendWeatherToClients();
+        lastWeatherUpdate = currentMillis;
+    }
 }
-
-// FUNCTIONS: set, setInt, setFloat, setDouble, setString, setJSON, setArray, setBlob, setFile
