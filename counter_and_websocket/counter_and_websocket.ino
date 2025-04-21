@@ -56,6 +56,22 @@ unsigned long lastWeatherUpdate = 0;
 const unsigned long weatherUpdateInterval = 30000; // 30 seconds
 
 
+// Timer variables
+unsigned long timerDuration = 10 * 60 * 1000; // 10 minutes in milliseconds
+unsigned long periodDuration = 2.5 * 60 * 1000; // 2.5 minutes in milliseconds
+unsigned long myTimerStart = 0; // Changed name to avoid conflict with ESP32 core function
+int counters[4] = {0, 0, 0, 0}; // Counters for each time period
+// Counter to increment (simulating data collection)
+unsigned long lastCountIncrement = 0;
+const unsigned long countIncrementInterval = 10000; // Every 10 seconds
+// Function declarations to prevent any potential compilation issues
+void handleRoot();
+void handleTimer();
+void handleData();
+int getCurrentPeriod();
+String getCurrentTimeOfDay();
+
+
 const char* htmlContent = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -65,645 +81,734 @@ const char* htmlContent = R"rawliteral(
         <title>Laxonar</title>
         <style>
         /* ************************************************* */
-            body {
-                /* background-image: url("https://www.akvagroup.no/getfile.php/135852-1663322966/Bildegalleri/Sea%20Based/Bilder%20og%20sertifikater/Deep%20farming/Atlantis/Luftkuppel_dyp_drift_web.png%20%28optimized_original%29.png"); */
-                /*
-                background-image: url("https://images.dngroup.com/image/eyJ3IjoxOTYwLCJmIjoid2VicCIsImsiOiJiMDE4YzEwZDJmYmFlYTNjOGFhOTY1OGRiYzk3NmE4NCIsImNyb3AiOlsyMDEsMCwxMTk3LDgwMF0sInIiOjEuNSwibyI6ImRuIn0");
-                background-repeat: no-repeat;
-                background-size: cover; 
-                */
-                background-color: #F0F7EE;
-            }
 
-            * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box; /* Prevents padding from affecting width */
-            }
+        body {
+            /* background-image: url("https://www.akvagroup.no/getfile.php/135852-1663322966/Bildegalleri/Sea%20Based/Bilder%20og%20sertifikater/Deep%20farming/Atlantis/Luftkuppel_dyp_drift_web.png%20%28optimized_original%29.png"); */
+            /*
+            background-image: url("https://images.dngroup.com/image/eyJ3IjoxOTYwLCJmIjoid2VicCIsImsiOiJiMDE4YzEwZDJmYmFlYTNjOGFhOTY1OGRiYzk3NmE4NCIsImNyb3AiOlsyMDEsMCwxMTk3LDgwMF0sInIiOjEuNSwibyI6ImRuIn0");
+            background-repeat: no-repeat;
+            background-size: cover; 
+            */
+            background-color: #F0F7EE;
+        }
 
-            @font-face {
-            font-family: 'zilmar'; /*a name to be used later*/
-            src: url(ZilapMarine.ttf); /*URL to font, note: in .ino there is backslash - \ZilapMarine.ttf */ 
-            }
+        * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box; /* Prevents padding from affecting width */
+        }
 
-            @font-face {
-            font-family: 'helveticaNeue';
-            src: url(HelveticaNeue-Roman.otf);
-            }
+        @font-face {
+        font-family: 'zilmar'; /*a name to be used later*/
+        src: url(ZilapMarine.ttf); /*URL to font, note: in .ino there is backslash - \ZilapMarine.ttf */ 
+        }
 
-            @font-face {
-            font-family: 'NeueHaas';
-            src: url(NeueHaasDisplayRoman.ttf);
-            }
+        @font-face {
+        font-family: 'helveticaNeue';
+        src: url(HelveticaNeue-Roman.otf);
+        }
 
-            @font-face {
-            font-family: 'NeueHaasBold';
-            src: url(NeueHaasDisplayBold.ttf);
-            }
+        @font-face {
+        font-family: 'NeueHaas';
+        src: url(NeueHaasDisplayRoman.ttf);
+        }
 
-            /* ************************************************* */
-            /* MENU BAR START */
+        @font-face {
+        font-family: 'NeueHaasBold';
+        src: url(NeueHaasDisplayBold.ttf);
+        }
 
-            @import url('https://fonts.googleapis.com/css?family=Merriweather:900&display=swap');
+        /* ************************************************* */
+        /* MENU BAR START */
 
-            :root {
-            --color-primary: rgba(0, 46, 90, 1);
-            --color-secondary: #F0F7EE;
-            --duration: 1s;
-            --nav-duration: calc(var(--duration) / 4);
-            --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
-            --space: 1rem;
-            --font-primary: 'Helvetica', sans-serif;
-            --font-heading: 'Merriweather', serif;
-            --font-size: 1.125rem;
-            --line-height: 1.5;
-            }
+        @import url('https://fonts.googleapis.com/css?family=Merriweather:900&display=swap');
 
-            .main-navigation-toggle {
+        :root {
+        --color-primary: rgba(0, 46, 90, 1);
+        --color-secondary: #F0F7EE;
+        --duration: 1s;
+        --nav-duration: calc(var(--duration) / 4);
+        --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
+        --space: 1rem;
+        --font-primary: 'Helvetica', sans-serif;
+        --font-heading: 'Merriweather', serif;
+        --font-size: 1.125rem;
+        --line-height: 1.5;
+        }
+
+        .main-navigation-toggle {
+        position: fixed;
+        height: 1px; 
+        width: 1px;
+        overflow: hidden;
+        clip: rect(1px, 1px, 1px, 1px);
+        white-space: nowrap;
+        
+        + label {
             position: fixed;
-            height: 1px; 
-            width: 1px;
-            overflow: hidden;
-            clip: rect(1px, 1px, 1px, 1px);
-            white-space: nowrap;
-            
-            + label {
-                position: fixed;
-                top: calc(var(--space) * 1.5);
-                right: calc(var(--space) * 2);
-                cursor: pointer;
-                z-index: 2000;
-            }
-            }
+            top: calc(var(--space) * 1.5);
+            right: calc(var(--space) * 2);
+            cursor: pointer;
+            z-index: 2000;
+        }
+        }
 
-            .icon--menu-toggle {
-            --size: calc(1rem + 4vmin);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: var(--size);
-            height: var(--size);
-            stroke-width: 6;
-            }
+        .icon--menu-toggle {
+        --size: calc(1rem + 4vmin);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--size);
+        height: var(--size);
+        stroke-width: 6;
+        }
 
-            .icon-group {
-            transform: translateX(0);
-            transition: transform var(--nav-duration) var(--ease);
-            }
+        .icon-group {
+        transform: translateX(0);
+        transition: transform var(--nav-duration) var(--ease);
+        }
 
-            .icon--menu {
-            stroke: var(--color-primary);
-            }
+        .icon--menu {
+        stroke: var(--color-primary);
+        }
 
-            .icon--close {
-            stroke: var(--color-secondary);
-            transform: translateX(-100%);
-            }
+        .icon--close {
+        stroke: var(--color-secondary);
+        transform: translateX(-100%);
+        }
 
-            .main-navigation {
-            position: fixed;
+        .main-navigation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        transform: translateX(-100%);
+        transition: transform var(--nav-duration);
+        z-index: 1;
+        
+        &:after {
+            content: '';
+            position: absolute;
             top: 0;
             left: 0;
-            display: flex;
-            align-items: center;
             width: 100%;
             height: 100%;
-            transform: translateX(-100%);
-            transition: transform var(--nav-duration);
-            z-index: 1;
+            background-color: var(--color-primary);
+            transform-origin: 0 50%;
+            z-index: -1;
+        }
+        
+        ul {
+            font-size: 12vmin;
+            font-family: var(--font-heading);
+            width: 100%;
+        }
+        
+        li {
+            --border-size: 1vmin;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
             
             &:after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: var(--color-primary);
-                transform-origin: 0 50%;
-                z-index: -1;
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--border-size);
+            background-color: var(--color-secondary);
+            transform-origin: 0 50%;
+            transform: translateX(-100%) skew(15deg);
+            }
+        }
+        
+        a {
+            display: inline-block;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            color: var(--color-secondary);
+            line-height: 1;
+            text-decoration: none;
+            user-select: none;
+            padding: var(--space) calc(var(--space) * 2) calc(var(--space) + var(--border-size) / 2);
+            transform: translateY(100%);
+        }
+        }
+
+        .main-content {
+        margin: 6rem auto;
+        max-width: 70ch;
+        padding: 0 calc(var(--space) * 2);
+        transform: translateX(0);
+        transition: transform calc(var(--nav-duration) * 2) var(--ease);
+        
+        > * + * {
+            margin-top: calc(var(--space) * var(--line-height));
+        }
+        }
+
+        .main-navigation-toggle:checked {
+        ~ label .icon--menu-toggle {    
+            .icon-group {
+            transform: translateX(100%);
+            }
+        }
+        
+        ~ .main-content {
+            transform: translateX(10%);
+        }
+        
+        ~ .main-navigation {
+            transition-duration: 0s;
+            transform: translateX(0);
+            
+            &:after {
+            animation: nav-bg var(--nav-duration) var(--ease) forwards;
             }
             
-            ul {
-                font-size: 12vmin;
-                font-family: var(--font-heading);
-                width: 100%;
-            }
-            
-            li {
-                --border-size: 1vmin;
-                display: flex;
-                align-items: center;
-                position: relative;
-                overflow: hidden;
-                
-                &:after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                height: var(--border-size);
-                background-color: var(--color-secondary);
-                transform-origin: 0 50%;
-                transform: translateX(-100%) skew(15deg);
-                }
+            li:after {
+            animation: nav-line var(--duration) var(--ease) forwards;
             }
             
             a {
-                display: inline-block;
-                width: 100%;
-                max-width: 800px;
-                margin: 0 auto;
-                color: var(--color-secondary);
-                line-height: 1;
-                text-decoration: none;
-                user-select: none;
-                padding: var(--space) calc(var(--space) * 2) calc(var(--space) + var(--border-size) / 2);
-                transform: translateY(100%);
-            }
-            }
-
-            .main-content {
-            margin: 6rem auto;
-            max-width: 70ch;
-            padding: 0 calc(var(--space) * 2);
-            transform: translateX(0);
-            transition: transform calc(var(--nav-duration) * 2) var(--ease);
-            
-            > * + * {
-                margin-top: calc(var(--space) * var(--line-height));
-            }
-            }
-
-            .main-navigation-toggle:checked {
-            ~ label .icon--menu-toggle {    
-                .icon-group {
-                transform: translateX(100%);
-                }
+            animation: link-appear calc(var(--duration) * 1.5) var(--ease) forwards;
             }
             
-            ~ .main-content {
-                transform: translateX(10%);
-            }
-            
-            ~ .main-navigation {
-                transition-duration: 0s;
-                transform: translateX(0);
-                
-                &:after {
-                animation: nav-bg var(--nav-duration) var(--ease) forwards;
-                }
-                
-                li:after {
-                animation: nav-line var(--duration) var(--ease) forwards;
-                }
-                
-                a {
-                animation: link-appear calc(var(--duration) * 1.5) var(--ease) forwards;
-                }
-                
-                @for $i from 1 through 4 {
-                li:nth-child(#{$i}) {
-                    &:after, a {
-                    animation-delay: calc((var(--duration) / 2) * #{$i} * 0.125);
-                    }
-                }
+            @for $i from 1 through 4 {
+            li:nth-child(#{$i}) {
+                &:after, a {
+                animation-delay: calc((var(--duration) / 2) * #{$i} * 0.125);
                 }
             }
             }
+        }
+        }
 
-            @keyframes nav-bg {
-            from { transform: translateX(-100%) skewX(-15deg) }
-            to { transform: translateX(0) }
-            }
+        @keyframes nav-bg {
+        from { transform: translateX(-100%) skewX(-15deg) }
+        to { transform: translateX(0) }
+        }
 
-            @keyframes nav-line {
-            0%   { transform: scaleX(0); transform-origin: 0 50%; }
-            35%  { transform: scaleX(1.001); transform-origin: 0 50%; }
-            65%  { transform: scaleX(1.001); transform-origin: 100% 50%; }
-            100% { transform: scaleX(0); transform-origin: 100% 50%; }
-            }
+        @keyframes nav-line {
+        0%   { transform: scaleX(0); transform-origin: 0 50%; }
+        35%  { transform: scaleX(1.001); transform-origin: 0 50%; }
+        65%  { transform: scaleX(1.001); transform-origin: 100% 50%; }
+        100% { transform: scaleX(0); transform-origin: 100% 50%; }
+        }
 
-            @keyframes link-appear {
-            0%, 25%   { transform: translateY(100%); }
-            50%, 100% { transform: translateY(0); }
-            }
+        @keyframes link-appear {
+        0%, 25%   { transform: translateY(100%); }
+        50%, 100% { transform: translateY(0); }
+        }
 
-            /* MENU BAR END */
-            /* ************************************************* */
+        /* MENU BAR END */
+        /* ************************************************* */
 
-            /* ************************************************* */
-            /* HEADER START */
+        /* ************************************************* */
+        /* HEADER START */
 
-            #fixedHeader {
-            position: fixed;
-            top: 0;
-            left: 0;
+        #fixedHeader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding-left: 20px;
+        padding-bottom: 20px;
+        background: white;
+        opacity: 0.9;
+        z-index: 1000;
+        /* display: flex; */
+        /* align-items: center; Changed from center to allow individual alignment */
+        }
+
+        .logo-container {
+        display: flex;
+        align-items: center; /* vertical center */
+        text-decoration: none;
+        }
+
+        #logo {
+        width: 100px;
+        margin-right: 5px;
+        padding-top: 15px;
+
+        }
+
+        #fixedHeader a {
+        /* display: flex; */
+        /* align-items: flex-start; */
+        text-decoration: none;
+        }
+
+        .zilap-font {
+        font-family: 'zilmar';
+        position: relative;
+        font-size: 50px;
+        color: black;
+        text-decoration: none;
+        padding-top: 20px;
+        /* text-align: center; */
+        /* align-self: flex-end; */
+        }
+
+        a:link, a:visited, a:hover, a:active {
+        text-decoration: none;
+        }
+
+        /* HEADER END */
+        /* ************************************************* */
+
+
+        /* ************************************************* */
+        /* COVER PAGE START */
+
+        .backdrop {
+        position:relative;
+        margin: 0;
+        padding: 0;
+        top: 0px;
+        left: 0px;
+        width: 100%;
+        height: 100vh; /* Full screen height */
+        background-size: cover;
+        background-position: center;
+        }
+
+        .inner-front-page {
+        position: absolute;
+        top: 400px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        width: 60%;
+        margin-top: 76px;
+        padding-block-start: 0;
+        padding-inline: 16px;
+        }
+
+        .live-number-title {
+        /* text-align: center; */
+        color: white;
+        font-size: 30px;
+        font-family: 'NeueHaas';
+        /* font-weight: bold; */
+        /* display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px; */
+        position: relative;
+        display: inline-block;
+        }
+
+        #sensorData {
+        color: white;
+        font-size: 55px;
+        min-height: 40px;
+        margin: 0;
+        font-family: 'NeueHaasBold';
+        text-align: center;
+        padding: 10px 0px;
+        }
+
+        .blinking-dot {
+        --blinking-dot-size: 15px;
+        --blinking-dot-speed: 1s;
+
+        /* display: inline-block; */
+        position: absolute;
+        top: 25%;
+        right: -25px;
+        display: inline-block;
+        width: var(--blinking-dot-size);
+        height: var(--blinking-dot-size);
+        background-color: red; /* Change color as needed */
+        border-radius: 50%; /* Makes it a circle */
+        /* min-width: calc(var(--blinking-dot-size) * 2); */
+
+        animation: blink-animation var(--blinking-dot-speed) infinite alternate;
+        }
+
+        .blinking-dot::before {
+        content: '';
+        position:absolute;
+        top: 0;
+        left: 0;
+        /* display: inline-block; */
+        width: var(--blinking-dot-size);
+        height: var(--blinking-dot-size);
+        background-color: red; /* Change color as needed */
+        border-radius: 50%; /* Makes it a circle */
+        }
+
+        .blinking-dot::after {
+        content: '';
+        position:absolute;
+        top: -2px;
+        left: -2px;
+        display: inline-block;
+        width: calc(var(--blinking-dot-size) * 1.25);
+        height: calc(var(--blinking-dot-size) * 1.25);
+        background-color: red; /* Change color as needed */
+        border-radius: 50%; /* Makes it a circle */
+        animation: pulse 1000ms infinite;
+        }
+
+        @keyframes pulse {
+        0% { 
+        transform: scale(1); 
+        opacity: 1; }
+        100% {
+            transform: scale(1.5); 
+            opacity: 0; }
+        }
+
+        @keyframes blink-animation {
+        60% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+        }
+
+        /* COVER PAGE END */
+        /* ************************************************* */
+
+        /* ************************************************* */
+        /* MAIN PAGE START */
+
+        .content {
             width: 100%;
-            padding-left: 20px;
-            padding-bottom: 20px;
-            background: white;
-            opacity: 0.9;
-            z-index: 1000;
-            /* display: flex; */
-            /* align-items: center; Changed from center to allow individual alignment */
-            }
-
-            .logo-container {
-            display: flex;
-            align-items: center; /* vertical center */
-            text-decoration: none;
-            }
-
-            #logo {
-            width: 100px;
-            margin-right: 5px;
-            padding-top: 15px;
-
-            }
-
-            #fixedHeader a {
-            /* display: flex; */
-            /* align-items: flex-start; */
-            text-decoration: none;
-            }
-
-            .zilap-font {
-            font-family: 'zilmar';
-            position: relative;
-            font-size: 50px;
+            padding: 14px;
             color: black;
-            text-decoration: none;
-            padding-top: 20px;
-            /* text-align: center; */
-            /* align-self: flex-end; */
-            }
-
-            a:link, a:visited, a:hover, a:active {
-            text-decoration: none;
-            }
-
-            /* HEADER END */
-            /* ************************************************* */
-
-
-            /* ************************************************* */
-            /* COVER PAGE START */
-
-            .backdrop {
-            position:relative;
-            margin: 0;
-            padding: 0;
-            top: 0px;
-            left: 0px;
-            width: 100%;
-            height: 100vh; /* Full screen height */
-            background-size: cover;
-            background-position: center;
-            }
-
-            .inner-front-page {
-            position: absolute;
-            top: 400px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            width: 60%;
-            margin-top: 76px;
-            padding-block-start: 0;
-            padding-inline: 16px;
-            }
-
-            .live-number-title {
-            /* text-align: center; */
-            color: white;
-            font-size: 30px;
-            font-family: 'NeueHaas';
-            /* font-weight: bold; */
-            /* display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px; */
-            position: relative;
-            display: inline-block;
-            }
-
-            #sensorData {
-            color: white;
-            font-size: 55px;
-            min-height: 40px;
-            margin: 0;
-            font-family: 'NeueHaasBold';
-            text-align: center;
-            padding: 10px 0px;
-            }
-
-            .blinking-dot {
-            --blinking-dot-size: 15px;
-            --blinking-dot-speed: 1s;
-
-            /* display: inline-block; */
-            position: absolute;
-            top: 25%;
-            right: -25px;
-            display: inline-block;
-            width: var(--blinking-dot-size);
-            height: var(--blinking-dot-size);
-            background-color: red; /* Change color as needed */
-            border-radius: 50%; /* Makes it a circle */
-            /* min-width: calc(var(--blinking-dot-size) * 2); */
-
-            animation: blink-animation var(--blinking-dot-speed) infinite alternate;
-            }
-
-            .blinking-dot::before {
-            content: '';
-            position:absolute;
-            top: 0;
-            left: 0;
-            /* display: inline-block; */
-            width: var(--blinking-dot-size);
-            height: var(--blinking-dot-size);
-            background-color: red; /* Change color as needed */
-            border-radius: 50%; /* Makes it a circle */
-            }
-
-            .blinking-dot::after {
-            content: '';
-            position:absolute;
-            top: -2px;
-            left: -2px;
-            display: inline-block;
-            width: calc(var(--blinking-dot-size) * 1.25);
-            height: calc(var(--blinking-dot-size) * 1.25);
-            background-color: red; /* Change color as needed */
-            border-radius: 50%; /* Makes it a circle */
-            animation: pulse 1000ms infinite;
-            }
-
-            @keyframes pulse {
-            0% { 
-            transform: scale(1); 
-            opacity: 1; }
-            100% {
-                transform: scale(1.5); 
-                opacity: 0; }
-            }
-
-            @keyframes blink-animation {
-            60% {
-                opacity: 1;
-            }
-            100% {
-                opacity: 0;
-            }
-            }
-
-            /* COVER PAGE END */
-            /* ************************************************* */
-
-            /* ************************************************* */
-            /* MAIN PAGE START */
-
-            .content {
-                width: 100%;
-                padding: 14px;
-                color: black;
-                background-color: rgba(243, 241, 239, 0.4); /* setting transparecy only on background color */
-                /* not opacity: 0.6; as opacity is applied to the entire element and all of its children*/
-                height: 400px;
-                overflow: hidden;
-            }
-
-            /* FISH HISTORY SECTION START */
-            .fish-history-container {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 8px; 
-            max-height: 300px;
-            overflow-y: auto;
-            float: left;
-            width: 50%;
-            }
-
-            #fishHistoryTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            }
-
-            #fishHistoryTable th{
-            border: 0.5px solid black;
-            padding: 8px;
-            text-align: center;
-            font-family: "neueHaasBold";
-            }
-
-            .fish-detection-history-title {
-            font-family: "neueHaasBold";
-            color: rgba(0, 46, 90, 1);
-            font-size: 30px;
-            margin-bottom: 10px;
-            text-align: center;
-            }
-
-            #fishHistoryTable td {
-            border: 0.5px solid black;
-            padding: 8px;
-            text-align: center;
-            font-family: "neueHaas";
-            }
-
-            #fishHistoryTable tr:nth-child(even) {
-            background-color: #F0F7EE;
-            }
-
-            #fishHistoryTable tr:nth-child(odd) { background-color: white; }
-
-            #fishHistoryTable th {
-            padding-top: 12px;
-            padding-bottom: 12px;
-            background-color: rgba(0, 46, 90, 1);
-            color: white;
-            }
-
-            #fishNumber {
-            width: 100px;
-            }
-
-
-            /* FISH HISTORY SECTION END */
-
-
-            /* GRAPH START */
-            .detection-graph-container {
-            width: 100%;
-            margin: 0 auto;
-            border-radius: 10px; 
-            padding: 20px; 
-            /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
+            background-color: rgba(243, 241, 239, 0.4); /* setting transparecy only on background color */
+            /* not opacity: 0.6; as opacity is applied to the entire element and all of its children*/
+            height: 600px;
             overflow: hidden;
-            }
+        }
 
-            .graph-container {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 8px; 
-            max-height: 300px;
-            overflow-y: auto;
-            float: left;
-            width: 50%;
-            }
+        /* FISH HISTORY SECTION START */
+        .fish-history-container {
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 8px; 
+        height: 535px;
+        max-height: 535px;
+        overflow-y: auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        float: left;
+        width: 48%;
+        }
 
-            .graph-title {
-            font-family: "neueHaasBold";
-            color: rgba(0, 46, 90, 1);
-            font-size: 30px;
-            margin-bottom: 10px;
-            text-align: center;
-            }
+        #fishHistoryTable {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        }
 
-            /* GRAPH END */
+        #fishHistoryTable th{
+        border: 0.5px solid black;
+        padding: 8px;
+        text-align: center;
+        font-family: "neueHaasBold";
+        }
 
+        .fish-detection-history-title {
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        font-size: 30px;
+        margin-bottom: 10px;
+        text-align: center;
+        }
 
-            /* WEATHER DISPLAY START */
+        #fishHistoryTable td {
+        border: 0.5px solid black;
+        padding: 8px;
+        text-align: center;
+        font-family: "neueHaas";
+        }
 
-            .weatherContainer {
-            width: 100%;
-            margin: 20px auto 0;
-            clear: both;
-            background-color: white; 
-            border-radius: 10px; 
-            padding: 20px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
+        #fishHistoryTable tr:nth-child(even) {
+        background-color: #F0F7EE;
+        }
 
-            #weatherH1 {
-            font-family: "neueHaasBold";
-            color: rgba(0, 46, 90, 1);
-            font-size: 30px;
-            margin-bottom: 10px;
-            text-align: center;
-            }
+        #fishHistoryTable tr:nth-child(odd) { background-color: white; }
 
-            #weatherH2 {
-            font-family: "neueHaasBold";
-            color: rgba(0, 46, 90, 1);
-            font-size: 20px;
-            margin-bottom: 10px;
-            text-align: center;
-            }
+        #fishHistoryTable th {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        background-color: rgba(0, 46, 90, 1);
+        color: white;
+        }
 
-            .weatherColumn {
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 8px; 
-            /* background-color: #e6f2ff; */
-            float: left;
-            width: 33.33%;
-            box-sizing: border-box;
-            }
-
-            .weatherContainer:after {
-            content: "";
-            display: table;
-            clear: both;
-            }
-
-            .weatherRow {
-            display: flex; 
-            justify-content: space-between; 
-            margin: 8px 0; 
-            padding: 5px 0;
-            border-bottom: 1px solid #ddd;
-            }
-
-            .label {
-            font-family: "neueHaasBold"; 
-            /* color: #0066cc; */
-            }
-
-            .value { 
-            font-family: "neueHaas";
-            }
-
-            .status { 
-            margin-top: 20px; 
-            font-style: italic; 
-            color: #666; 
-            text-align: center;
-            clear: both;
-            width: 100%; 
-            display: block; 
-            padding: 10px 0; 
-            }
+        #fishNumber {
+        width: 100px;
+        }
 
 
-            /* WEATHER DISPLAY END */
+        /* FISH HISTORY SECTION END */
 
-            /* FOOTER START */
-            /* footer {
-            position: absolute;
-            bottom: 0%;
-            left: 0;
-            width: 100%;
-            padding: 10px;
-            background-color: rgba(255, 255, 255, 0.8);
-            text-align: center;
-            } */
 
-            .footer {
-            margin-top: 100px;
-            width: 100%;
-            padding: 100px, 15%;
-            padding-top: 50px;
-            padding-bottom: 50px;
-            background-color: rgba(0, 46, 90, 1); /* rgb(37, 150, 190) */
-            color: black;
-            display: flex;
-            font-family: 'NeueHaas';
-            line-height: 1.65;
-            }
+        /* GRAPH START */
+        .detection-graph-container {
+        width: 100%;
+        margin: 0 auto;
+        border-radius: 10px; 
+        padding: 20px; 
+        /* box-shadow: 0 2px 10px rgba(0,0,0,0.1); */
+        overflow: hidden;
+        }
 
-            .footer div{
-            text-align: center;
-            }
+        .graph-container {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 8px; 
+        max-height: 535px;
+        overflow-y: auto;
+        float: right;
+        width: 48%;
+        overflow-y: hidden;
+        }
 
-            .memberName, h3 {
-            color: white;
-            font-family: 'NeueHaasBold';
-            }
+        .graph-title {
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        font-size: 30px;
+        margin-bottom: 10px;
+        text-align: center;
+        }
 
-            .footer a {
-            color: white;
-            font-family: 'NeueHaas';
-            }
+        .timer {
+        font-size: 24px;
+        margin: 20px 0;
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        text-align: center;
+        }
 
-            .NeueHaas {
-            color: white;
-            font-family: 'NeueHaas';
-            }
+        .time-of-day {
+        font-size: 24px;
+        font-family: "neueHaas";
+        margin: 10px 0;
+        color: rgba(0, 46, 90, 1);
+        text-align: center;
+        }
 
-            .col2 {
-            flex: 0.25;
-            }
+        .period-label {
+        font-size: 18px;
+        margin: 10px 0;
+        font-family: "neueHaas";
+        text-align: center;
+        }
 
-            .col4 {
-            flex: 0.25;
-            }
+        .chart-container {
+        height: 300px;
+        margin-top: 40px;
+        position: relative;
+        }
 
-            .col6 {
-            flex: 0.25;
-            }
+        .chart {
+        display: flex;
+        height: 250px;
+        align-items: flex-end;
+        justify-content: space-around;
+        padding-bottom: 30px;
+        }
 
-            .col7 {
-            flex: 0.25;
-            }
-            /* FOOTER END */
+        .bar {
+        width: 60px;
+        background-color: #0066cc;
+        position: relative;
+        bottom: -30px;
+        transition: height 0.5s ease;
+        }
 
-            /* MAIN PAGE END */
-            /* ************************************************* */
+        .bar-label {
+        position: absolute;
+        bottom: -30px;
+        width: 100%;
+        text-align: center;
+        font-size: 15px;
+        font-family: "neueHaas";
+        }
+
+        .y-axis {
+        position: absolute;
+        left: 0;
+        height: 250px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 40px;
+        }
+
+        .y-label {
+        text-align: right;
+        font-size: 15px;
+        padding-right: 5px;
+        }
+
+        .x-axis {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 30px;
+        display: flex;
+        justify-content: space-around;
+        }
+
+        .x-label {
+        text-align: center;
+        font-size: 14px;
+        }
+
+        /* GRAPH END */
+
+
+        /* WEATHER DISPLAY START */
+
+        .weatherContainer {
+        width: 100%;
+        margin: 20px auto 0;
+        clear: both;
+        background-color: white; 
+        border-radius: 10px; 
+        padding: 20px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #weatherH1 {
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        font-size: 30px;
+        margin-bottom: 10px;
+        text-align: center;
+        }
+
+        #weatherH2 {
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        font-size: 20px;
+        margin-bottom: 10px;
+        text-align: center;
+        }
+
+        .weatherColumn {
+        margin: 20px 0; 
+        padding: 15px; 
+        border-radius: 8px; 
+        /* background-color: #e6f2ff; */
+        float: left;
+        width: 33.33%;
+        box-sizing: border-box;
+        }
+
+        .weatherContainer:after {
+        content: "";
+        display: table;
+        clear: both;
+        }
+
+        .weatherRow {
+        display: flex; 
+        justify-content: space-between; 
+        margin: 8px 0; 
+        padding: 5px 0;
+        border-bottom: 1px solid #ddd;
+        }
+
+        .label {
+        font-family: "neueHaasBold"; 
+        /* color: #0066cc; */
+        }
+
+        .value { 
+        font-family: "neueHaas";
+        }
+
+        .status { 
+        margin-top: 20px; 
+        font-style: italic; 
+        color: #666; 
+        text-align: center;
+        clear: both;
+        width: 100%; 
+        display: block; 
+        padding: 10px 0; 
+        }
+
+
+        /* WEATHER DISPLAY END */
+
+        /* FOOTER START */
+        /* footer {
+        position: absolute;
+        bottom: 0%;
+        left: 0;
+        width: 100%;
+        padding: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        text-align: center;
+        } */
+
+        .footer {
+        margin-top: 100px;
+        width: 100%;
+        padding: 100px, 15%;
+        padding-top: 50px;
+        padding-bottom: 50px;
+        background-color: rgba(0, 46, 90, 1); /* rgb(37, 150, 190) */
+        color: black;
+        display: flex;
+        font-family: 'NeueHaas';
+        line-height: 1.65;
+        }
+
+        .footer div{
+        text-align: center;
+        }
+
+        .memberName, h3 {
+        color: white;
+        font-family: 'NeueHaasBold';
+        }
+
+        .footer a {
+        color: white;
+        font-family: 'NeueHaas';
+        }
+
+        .NeueHaas {
+        color: white;
+        font-family: 'NeueHaas';
+        }
+
+        .col2 {
+        flex: 0.25;
+        }
+
+        .col4 {
+        flex: 0.25;
+        }
+
+        .col6 {
+        flex: 0.25;
+        }
+
+        .col7 {
+        flex: 0.25;
+        }
+        /* FOOTER END */
+
+        /* MAIN PAGE END */
+        /* ************************************************* */
         </style>
     </head>
 
@@ -780,6 +885,36 @@ const char* htmlContent = R"rawliteral(
 
                 <div class="graph-container">
                     <h2 class="graph-title">Graph</h2>
+
+                    <div class="timer" id="timer">00:00</div>
+                    <div class="time-of-day" id="timeOfDay">00:00</div>
+                    <div class="period-label" id="periodLabel">Current period: 06:00-11:59</div>
+
+                    <div class="chart-container">
+                        <div class="y-axis">
+                          <div class="y-label">10</div>
+                          <div class="y-label">8</div>
+                          <div class="y-label">6</div>
+                          <div class="y-label">4</div>
+                          <div class="y-label">2</div>
+                          <div class="y-label">0</div>
+                        </div>
+                        
+                        <div class="chart">
+                          <div class="bar" id="bar0" style="height:20%">
+                            <div class="bar-label">00-06</div>
+                          </div>
+                          <div class="bar" id="bar1" style="height:50%">
+                            <div class="bar-label">06-12</div>
+                          </div>
+                          <div class="bar" id="bar2" style="height:20%">
+                            <div class="bar-label">12-18</div>
+                          </div>
+                          <div class="bar" id="bar3" style="height:100%">
+                            <div class="bar-label">18-00</div>
+                          </div>
+                        </div>
+                      </div>
                 </div>
             </div>
         </section>
@@ -919,69 +1054,70 @@ const char* htmlContent = R"rawliteral(
             };
 
             function updateWeatherDisplay(type, value) {
-                const columns = document.querySelectorAll(".weatherColumn");
-                
-                switch (type) {
-                    case "WEATHER_MAIN":
-                        columns[0].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_DESC":
-                        columns[0].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_TEMP":
-                        columns[0].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_FEELS":
-                        columns[0].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_HUMIDITY":
-                        columns[0].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_SEA_LEVEL":
-                        columns[0].querySelectorAll(".weatherRow")[5].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_GRND_LEVEL":
-                        columns[0].querySelectorAll(".weatherRow")[6].querySelector(".value").textContent = value;
-                        break;
+            const columns = document.querySelectorAll(".weatherColumn");
+            
+            switch (type) {
+                case "WEATHER_MAIN":
+                    columns[0].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_DESC":
+                    columns[0].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_TEMP":
+                    columns[0].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_FEELS":
+                    columns[0].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_HUMIDITY":
+                    columns[0].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_SEA_LEVEL":
+                    columns[0].querySelectorAll(".weatherRow")[5].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_GRND_LEVEL":
+                    columns[0].querySelectorAll(".weatherRow")[6].querySelector(".value").textContent = value;
+                    break;
 
-                    case "WEATHER_WIND_SPEED":
-                        columns[1].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_WIND_DEG":
-                        columns[1].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_WIND_GUST":
-                        columns[1].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_CLOUDS":
-                        columns[1].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_VISIBILITY":
-                        columns[1].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
-                        break;
+                case "WEATHER_WIND_SPEED":
+                    columns[1].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_WIND_DEG":
+                    columns[1].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_WIND_GUST":
+                    columns[1].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_CLOUDS":
+                    columns[1].querySelectorAll(".weatherRow")[3].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_VISIBILITY":
+                    columns[1].querySelectorAll(".weatherRow")[4].querySelector(".value").textContent = value;
+                    break;
 
-                    case "WEATHER_TIME":
-                        columns[2].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_CITY":
-                        columns[2].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
-                        break;
-                    case "WEATHER_COUNTRY":
-                        columns[2].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
-                        break;
+                case "WEATHER_TIME":
+                    columns[2].querySelectorAll(".weatherRow")[0].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_CITY":
+                    columns[2].querySelectorAll(".weatherRow")[1].querySelector(".value").textContent = value;
+                    break;
+                case "WEATHER_COUNTRY":
+                    columns[2].querySelectorAll(".weatherRow")[2].querySelector(".value").textContent = value;
+                    break;
 
-                    case "WEATHER_STATUS":
-                        const now = new Date();
-                        const hours = now.getHours().toString().padStart(2, '0');
-                        const minutes = now.getMinutes().toString().padStart(2, '0');
-                        const seconds = now.getSeconds().toString().padStart(2, '0');
-                        const timeString = `${hours}:${minutes}:${seconds}`;
-                        
-                        document.querySelector(".weatherContainer .status").textContent = 
-                            `Last update: ${timeString} (Weather data updated successfully)`;
-                        break;
-                }
-                }
+                case "WEATHER_STATUS":
+                    // document.querySelector(".weatherContainer .status").textContent = "Last update: " + value;
+                    const now = new Date();
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    const seconds = now.getSeconds().toString().padStart(2, '0');
+                    const timeString = `${hours}:${minutes}:${seconds}`;
+                    
+                    document.querySelector(".weatherContainer .status").textContent = 
+                        `Last update: ${timeString} (Weather data updated successfully)`;
+                    break;
+            }
+            }
 
             // Function to request weather data from ESP32
             function requestWeatherUpdate() {
@@ -1031,10 +1167,58 @@ const char* htmlContent = R"rawliteral(
                 document.getElementById('page-nav-toggle').checked = false;
             });
             });
+
+            // Update timer and data
+            function updateTimer() {
+            fetch('/timer')
+                .then(response => response.json())
+                .then(data => {
+                document.getElementById('timer').innerText = data.remainingTime;
+                document.getElementById('timeOfDay').innerText = data.timeOfDay;
+                
+                // Update period label
+                let period = data.currentPeriod;
+                let periodText = '';
+                switch(period) {
+                    case 0: periodText = "00:00-05:59"; break;
+                    case 1: periodText = "06:00-11:59"; break;
+                    case 2: periodText = "12:00-17:59"; break;
+                    case 3: periodText = "18:00-23:59"; break;
+                }
+                document.getElementById('periodLabel').innerText = "Current period: " + periodText;
+                });
+            }
+
+            function updateData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                const maxValue = Math.max(...data.counters, 10);
+                
+                for (let i = 0; i < 4; i++) {
+                    const heightPercent = (data.counters[i] / maxValue) * 100;
+                    document.getElementById('bar' + i).style.height = heightPercent + '%';
+                }
+                });
+            }
+
+            // Update every second
+            setInterval(updateTimer, 1000);
+            setInterval(updateData, 5000);
+
+            // Initial updates
+            updateTimer();
+            updateData();
         </script>
     </body>
 </html>
 )rawliteral";
+
+
+void handleRoot() {
+  server.send(200, "text/html", htmlContent);
+}
+
 
 const int MAX_HISTORY_ITEMS = 200; // The limit of numbers to retrieve
 
@@ -1318,20 +1502,75 @@ void setup() {
         return;
     }
 
-    // Serve the font file
-    server.on("/ZilapMarine.ttf", HTTP_GET, []() {
-        File fontFile = SPIFFS.open("/ZilapMarine.ttf", "r");
-        if(fontFile){
-            server.streamFile(fontFile, "font/ttf");
-            fontFile.close();
-        } else {
-            server.send(404, "text/plain", "Font file not found");
-        }
+     // Route for your root HTML page
+    server.on("/", HTTP_GET, handleRoot);
+
+    // Route to serve static files (fonts, logo, etc.)
+    server.on("/NeueHaasDisplayBold.ttf", HTTP_GET, []() {
+        File file = SPIFFS.open("/NeueHaasDisplayBold.ttf", "r");
+        server.streamFile(file, "font/ttf");
+        file.close();
     });
+
+    server.on("/laxonarLogoOnly.png", HTTP_GET, []() {
+        File file = SPIFFS.open("/laxonarLogoOnly.png", "r");
+        server.streamFile(file, "image/png");
+        file.close();
+    });
+
+    server.on("/timer", []() {
+        // Add these CORS headers
+        server.sendHeader("Access-Control-Allow-Origin", "*");
+        server.sendHeader("Access-Control-Allow-Methods", "GET");
+        server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+        unsigned long elapsed = millis() - myTimerStart;
+        unsigned long remaining = (timerDuration > elapsed) ? (timerDuration - elapsed) : 0;
+        
+        // If timer completed, restart it
+        if (remaining == 0) {
+            myTimerStart = millis();
+            remaining = timerDuration;
+        }
+        
+        int minutes = remaining / 60000;
+        int seconds = (remaining % 60000) / 1000;
+        
+        int currentPeriod = getCurrentPeriod();
+        String timeOfDay = getCurrentTimeOfDay();
+        
+        String json = "{";
+        json += "\"remainingTime\":\"" + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds) + "\",";
+        json += "\"currentPeriod\":" + String(currentPeriod) + ",";
+        json += "\"timeOfDay\":\"" + timeOfDay + "\"";
+        json += "}";
+        
+        server.send(200, "application/json", json);
+        });
+
+        server.on("/data", []() {
+            server.sendHeader("Access-Control-Allow-Origin", "*");
+            server.sendHeader("Access-Control-Allow-Methods", "GET");
+            server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+            String json = "{\"counters\":[";
+            for (int i = 0; i < 4; i++) {
+                json += String(counters[i]);
+                if (i < 3) json += ",";
+            }
+            json += "]}";
+            
+            server.send(200, "application/json", json);
+        });
 
     getWeatherData();
 
     server.begin();
+    Serial.println("HTTP server started");
+  
+    // Initialize timer
+    myTimerStart = millis(); // Changed variable name
+    Serial.println("Timer started");
 }
 
 void loop() {
@@ -1423,4 +1662,101 @@ void loop() {
         sendWeatherToClients();
         lastWeatherUpdate = currentMillis;
     }
+
+    // Simulate data collection for the current time period
+    if (millis() - lastCountIncrement >= countIncrementInterval) {
+        lastCountIncrement = millis();
+        
+        // Get current period (0-3)
+        int currentPeriod = getCurrentPeriod();
+        counters[currentPeriod]++;
+        
+        Serial.print("Incremented counter for period ");
+        Serial.print(currentPeriod);
+        Serial.print(" to ");
+        Serial.println(counters[currentPeriod]);
+    }
+    
+    // Check if timer needs to restart
+    unsigned long elapsed = millis() - myTimerStart; // Changed variable name
+    if (elapsed >= timerDuration) {
+        myTimerStart = millis(); // Changed variable name
+        Serial.println("Timer restarted");
+    }
+}
+
+int getCurrentPeriod() {
+  unsigned long elapsed = millis() - myTimerStart; // Changed variable name
+  return (elapsed / periodDuration) % 4;
+}
+
+String getCurrentTimeOfDay() {
+  unsigned long elapsed = millis() - myTimerStart; // Changed variable name
+  int period = (elapsed / periodDuration) % 4;
+  
+  int minutesInPeriod = (elapsed % periodDuration) / 1000 / 60;
+  int secondsInPeriod = (elapsed % periodDuration) / 1000 % 60;
+  
+  int hour = 0;
+  int minute = 0;
+  
+  // Calculate hours and minutes based on period and elapsed time within period
+  switch (period) {
+    case 0: // 00:00-05:59
+      hour = map(minutesInPeriod * 60 + secondsInPeriod, 0, 150, 0, 6);
+      minute = map((minutesInPeriod * 60 + secondsInPeriod) % 25, 0, 25, 0, 60); // Fixed calculation
+      break;
+    case 1: // 06:00-11:59
+      hour = map(minutesInPeriod * 60 + secondsInPeriod, 0, 150, 6, 12);
+      minute = map((minutesInPeriod * 60 + secondsInPeriod) % 25, 0, 25, 0, 60); // Fixed calculation
+      break;
+    case 2: // 12:00-17:59
+      hour = map(minutesInPeriod * 60 + secondsInPeriod, 0, 150, 12, 18);
+      minute = map((minutesInPeriod * 60 + secondsInPeriod) % 25, 0, 25, 0, 60); // Fixed calculation
+      break;
+    case 3: // 18:00-23:59
+      hour = map(minutesInPeriod * 60 + secondsInPeriod, 0, 150, 18, 24);
+      minute = map((minutesInPeriod * 60 + secondsInPeriod) % 25, 0, 25, 0, 60); // Fixed calculation
+      break;
+  }
+  
+  char timeStr[6];
+  sprintf(timeStr, "%02d:%02d", hour, minute);
+  return String(timeStr);
+}
+
+void handleTimer() {
+  unsigned long elapsed = millis() - myTimerStart; // Changed variable name
+  unsigned long remaining = (timerDuration > elapsed) ? (timerDuration - elapsed) : 0;
+  
+  // If timer completed, restart it
+  if (remaining == 0) {
+    myTimerStart = millis(); // Changed variable name
+    remaining = timerDuration;
+  }
+  
+  int minutes = remaining / 60000;
+  int seconds = (remaining % 60000) / 1000;
+  
+  int currentPeriod = getCurrentPeriod();
+  String timeOfDay = getCurrentTimeOfDay();
+  
+  String json = "{";
+  json += "\"remainingTime\":\"" + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds) + "\",";
+  json += "\"currentPeriod\":" + String(currentPeriod) + ",";
+  json += "\"timeOfDay\":\"" + timeOfDay + "\"";
+  json += "}";
+  
+  server.send(200, "application/json", json);
+}
+
+void handleData() {
+  String json = "{\"counters\":[";
+  for (int i = 0; i < 4; i++) {
+    json += String(counters[i]);
+    if (i < 3) json += ",";
+  }
+  json += "]}";
+  
+  server.send(200, "application/json", json);
 }

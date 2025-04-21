@@ -169,6 +169,36 @@
 
                 <div class="graph-container">
                     <h2 class="graph-title">Graph</h2>
+
+                    <div class="timer" id="timer">00:00</div>
+                    <div class="time-of-day" id="timeOfDay">00:00</div>
+                    <div class="period-label" id="periodLabel">Current period: 06:00-11:59</div>
+
+                    <div class="chart-container">
+                        <div class="y-axis">
+                          <div class="y-label">10</div>
+                          <div class="y-label">8</div>
+                          <div class="y-label">6</div>
+                          <div class="y-label">4</div>
+                          <div class="y-label">2</div>
+                          <div class="y-label">0</div>
+                        </div>
+                        
+                        <div class="chart">
+                          <div class="bar" id="bar0" style="height:0%">
+                            <div class="bar-label">00-06</div>
+                          </div>
+                          <div class="bar" id="bar1" style="height:0%">
+                            <div class="bar-label">06-12</div>
+                          </div>
+                          <div class="bar" id="bar2" style="height:0%">
+                            <div class="bar-label">12-18</div>
+                          </div>
+                          <div class="bar" id="bar3" style="height:0%">
+                            <div class="bar-label">18-00</div>
+                          </div>
+                        </div>
+                      </div>
                 </div>
             </div>
         </section>
@@ -264,3 +294,4 @@
         <script src="index.js"></script>
     </body>
 </html>
+

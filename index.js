@@ -153,7 +153,126 @@ window.onload = function() {
 }
 
 document.querySelectorAll('.nav-link').forEach(link => {
-link.addEventListener('click', () => {
-    document.getElementById('page-nav-toggle').checked = false;
+  link.addEventListener('click', () => {
+      document.getElementById('page-nav-toggle').checked = false;
+  });
 });
-});
+
+// // Update timer and data
+// function updateTimer() {
+//   fetch('/timer') 
+//     .then(response => response.json())
+//     .then(data => {
+//       document.getElementById('timer').innerText = data.remainingTime;
+//       document.getElementById('timeOfDay').innerText = data.timeOfDay;
+      
+//       // Update period label
+//       let period = data.currentPeriod;
+//       let periodText = '';
+//       switch(period) {
+//         case 0: periodText = "00:00-05:59"; break;
+//         case 1: periodText = "06:00-11:59"; break;
+//         case 2: periodText = "12:00-17:59"; break;
+//         case 3: periodText = "18:00-23:59"; break;
+//       }
+//       document.getElementById('periodLabel').innerText = "Current period: " + periodText;
+//     });
+// }
+
+// Mock timer data - represents what would come from the server
+let mockTimerData = {
+  remainingTime: "Timer 17:38",
+  currentPeriod: 1,
+  timeOfDay: "Time of day: 09:15"
+};
+
+function updateTimer() {
+  // Use local mock data instead of fetching from server
+  document.getElementById('timer').innerText = mockTimerData.remainingTime;
+  document.getElementById('timeOfDay').innerText = mockTimerData.timeOfDay;
+  
+  // Update period label
+  let period = mockTimerData.currentPeriod;
+  let periodText = '';
+  switch(period) {
+    case 0: periodText = "00:00-05:59"; break;
+    case 1: periodText = "06:00-11:59"; break;
+    case 2: periodText = "12:00-17:59"; break;
+    case 3: periodText = "18:00-23:59"; break;
+  }
+  document.getElementById('periodLabel').innerText = "Current period: " + periodText;
+}
+
+// Simulate timer countdown - updates the mock data
+function simulateTimerCountdown() {
+  // Parse current time
+  let [minutes, seconds] = mockTimerData.remainingTime.split(':').map(Number);
+  
+  // Decrease by 1 second
+  if (seconds > 0) {
+    seconds--;
+  } else if (minutes > 0) {
+    minutes--;
+    seconds = 59;
+  } else {
+    // Reset timer when it reaches 0
+    minutes = 2;
+    seconds = 45;
+  }
+  
+  // Update mock data
+  mockTimerData.remainingTime = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  
+  // Update display
+  updateTimer();
+}
+
+// function updateData() {
+//   fetch('/data')
+//     .then(response => response.json())
+//     .then(data => {
+//       const maxValue = Math.max(...data.counters, 10);
+      
+//       for (let i = 0; i < 4; i++) {
+//         const heightPercent = (data.counters[i] / maxValue) * 100;
+//         document.getElementById('bar' + i).style.height = heightPercent + '%';
+//       }
+//     });
+// }
+
+// Sample data - you would update this manually or through other means
+let mockCountersData = {
+  counters: [5, 8, 10, 7]
+};
+
+function updateData() {
+  const data = mockCountersData;
+  const maxValue = Math.max(...data.counters, 10);
+  
+  for (let i = 0; i < 4; i++) {
+    const heightPercent = (data.counters[i] / maxValue) * 100;
+    document.getElementById('bar' + i).style.height = heightPercent + '%';
+  }
+}
+
+// For testing, you could update the mock data periodically
+function simulateDataChanges() {
+  // Generate some random values
+  mockCountersData.counters = [
+    Math.floor(Math.random() * 10) + 1,
+    Math.floor(Math.random() * 10) + 1,
+    Math.floor(Math.random() * 10) + 1,
+    Math.floor(Math.random() * 10) + 1
+  ];
+  
+  // Update the display
+  updateData();
+}
+
+// Update every second
+setInterval(updateTimer, 1000);
+setInterval(updateData, 5000);
+
+// Initial updates
+updateTimer();
+updateData();
