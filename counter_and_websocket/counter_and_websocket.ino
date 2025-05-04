@@ -10,16 +10,23 @@
 #include <ArduinoJson.h>
 
 
+#define enablePin 15
 #define trigPin 17
 #define echoPin 16
 
+// #define trigPin 0
+// #define echoPin 1
+
+
 const char* ssid = "1234";      // Change to your WiFi SSID
 const char* password = "hayday123";  // Change to your WiFi Password
+unsigned long previousMillis = 0;
+const long interval = 10000;
 #define API_KEY "AIzaSyBT6acRzfEP8qXoRaP5F78WjD7fuMo0bTA"
 #define DATABASE_URL "https://esp32-laxonar-test-default-rtdb.europe-west1.firebasedatabase.app/"
 
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 3600;
+const long gmtOffset_sec = 3600 * 2; // GMT+2
 const int daylightOffset_sec = 0;
 
 WebSocketsServer webSocket = WebSocketsServer(81); // WebSocket server on port 81
@@ -70,6 +77,11 @@ void handleTimer();
 void handleData();
 int getCurrentPeriod();
 String getCurrentTimeOfDay();
+
+
+// Ability to enable sensors
+bool sensorEnabled = false;
+long duration, distance;
 
 
 const char* htmlContent = R"rawliteral(
@@ -417,21 +429,21 @@ const char* htmlContent = R"rawliteral(
         }
 
         .blinking-dot {
-        --blinking-dot-size: 15px;
-        --blinking-dot-speed: 1s;
+            --blinking-dot-size: 15px;
+            --blinking-dot-speed: 1s;
 
-        /* display: inline-block; */
-        position: absolute;
-        top: 25%;
-        right: -25px;
-        display: inline-block;
-        width: var(--blinking-dot-size);
-        height: var(--blinking-dot-size);
-        background-color: red; /* Change color as needed */
-        border-radius: 50%; /* Makes it a circle */
-        /* min-width: calc(var(--blinking-dot-size) * 2); */
+            /* display: inline-block; */
+            position: absolute;
+            top: 25%;
+            right: -25px;
+            display: inline-block;
+            width: var(--blinking-dot-size);
+            height: var(--blinking-dot-size);
+            background-color: red; /* Change color as needed */
+            border-radius: 50%; /* Makes it a circle */
+            /* min-width: calc(var(--blinking-dot-size) * 2); */
 
-        animation: blink-animation var(--blinking-dot-speed) infinite alternate;
+            animation: blink-animation var(--blinking-dot-speed) infinite alternate;
         }
 
         .blinking-dot::before {
@@ -492,6 +504,95 @@ const char* htmlContent = R"rawliteral(
             height: 600px;
             overflow: hidden;
         }
+
+        /* ************************************************* */
+        /* SENSOR CONTROL START */
+        .sensor-controls {
+        margin: 20px auto;
+        width: 100%;
+        max-width: 600px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        font-family: 'NeueHaas';
+        }
+
+        .sensor-heading {
+        font-family: "neueHaasBold";
+        color: rgba(0, 46, 90, 1);
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-align: center;
+        }
+
+        /* 
+        
+        .on {
+        background-color: #85afc6;
+        border: none;
+        color: #85afc6;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 8px;
+        cursor: initial;
+
+
+        position: absolute;
+        top: 155px;
+        right: 0;
+        padding-top: 10px;
+        padding-left: 40px;
+        }
+
+        .off {
+        background-color: #85afc6;
+        border: none;
+        color: #85afc6;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 8px;
+        cursor: initial;
+
+        position: absolute;
+        top: 175px;
+        right: 0;
+        padding-bottom: 10px;
+        padding-left: 40px;
+        }
+
+        #statusEnable {
+        margin-top: 20px;
+        font-family: 'NeueHaas';
+        color:white;
+        font-size: 8px;
+
+        position: absolute;
+        top: 125px;
+        right: 0;
+        } 
+        
+        */
+
+        .sensorStatusUpdate {
+            font-weight: bold;
+        }
+
+        .ball{
+            position: absolute;
+            top: 200px;
+            right: 400px;
+            display: inline-block;
+            width: 8px;
+            height: 4px;
+            background-color: #beb428; /* Change color as needed */
+            border-radius: 4px 4px 0 0;
+        }
+        /* SENSOR CONTROL END */
+        /* ************************************************* */
 
         /* FISH HISTORY SECTION START */
         .fish-history-container {
@@ -834,16 +935,16 @@ const char* htmlContent = R"rawliteral(
         
         <nav class="main-navigation">
           <ul>
-            <li><a href="index.html" class="nav-link">Laxonar</a></li>
+            <li><a href="/" class="nav-link">Laxonar</a></li>
             <li><a href="sweep.html" class="nav-link">Visuals</a></li>
-            <li><a href="https://www.vg.no/" class="nav-link">VG</a></li>
-            <li><a href="index.html#footer" class="nav-link">Contact Us</a></li>
+            <li><a href="/#weatherContainer" class="nav-link">Weather</a></li>
+            <li><a href="/#footer" class="nav-link">Contact Us</a></li>
           </ul>
         </nav>
 
         <!-- Section 2: Header -->
         <header id="fixedHeader">
-            <a href="index.html" class="logo-container">
+            <a href="/" class="logo-container">
                 <img id="logo" src="laxonarLogoOnly.png" alt="Laxonar Logo">
                 <span class="zilap-font">Laxonar</span>
             </a>
@@ -862,7 +963,14 @@ const char* htmlContent = R"rawliteral(
                 <br>
                 <p id="sensorData"> Waiting for data...</p>
             </div>
+
+            <button class='on' onclick='enableSensor()'>Turn ON</button>
+            <div id='statusEnable'>Sensor Status: <span class="sensorStatusUpdate">OFF</span></div>
+            <button class='off' onclick='disableSensor()'>Turn OFF</button>
+            <span class="ball"></span>
+
         </section>
+        
 
         <!-- Section 4: Fish Detection History -->
         <!-- Section 5: Graph -->
@@ -920,7 +1028,7 @@ const char* htmlContent = R"rawliteral(
         </section>
 
         <!-- Section 5: Weather Display -->
-         <div class="weatherContainer">
+         <div class="weatherContainer" id=""weatherContainer">
             <h1 id="weatherH1">Complete Weather Dashboard</h1>
             <div class="weatherColumn">
                 <h2 id="weatherH2">Current Weather</h2>
@@ -986,26 +1094,8 @@ const char* htmlContent = R"rawliteral(
                 <p class="memberName">Natalia Chwiejczak</p>
                 <a href="mailto:fyll@stud.ntnu.no">natalc@stud.ntnu.no</a>
             </div>
-            <!-- <div class="col4">
-
-            </div>
-            <div class="col5">
-                
-            </div>
-            <div class="col6">
-                
-            </div>
-            <div class="col7">
-                
-            </div> -->
         </div>
-        <!-- <footer>
-            <p>Johnny Ngo Nguyen<br>
-            <a href="mailto:johnnynn@stud.ntnu.no">johnnynn@stud.ntnu.no</a></p>
 
-            <p>Johnny Ngo Nguyen<br>
-                <a href="mailto:johnnynn@stud.ntnu.no">johnnynn@stud.ntnu.no</a></p>
-        </footer> -->
 
         <script>
             window.onscroll = function() {myFunction()};
@@ -1209,6 +1299,40 @@ const char* htmlContent = R"rawliteral(
             // Initial updates
             updateTimer();
             updateData();
+
+            // Enable sensors
+            setInterval(function() {
+                fetch('/status').then(response => response.json()).then(data => {
+                    const statusElement = document.querySelector('.sensorStatusUpdate');
+                    statusElement.textContent = data.enabled ? 'ON' : 'OFF';
+                    
+                    // Add status class for color
+                    if(data.enabled) {
+                        statusElement.classList.add('status-on');
+                        statusElement.classList.remove('status-off');
+                    } else {
+                        statusElement.classList.add('status-off');
+                        statusElement.classList.remove('status-on');
+                    }
+                });
+            }, 1000);
+
+            // Update these functions to modify the status display directly
+            function enableSensor() {
+                fetch('/enable').then(response => response.text()).then(data => {
+                    document.querySelector('.sensorStatusUpdate').textContent = 'ON';
+                    document.querySelector('.sensorStatusUpdate').classList.add('status-on');
+                    document.querySelector('.sensorStatusUpdate').classList.remove('status-off');
+                });
+            }
+
+            function disableSensor() {
+                fetch('/disable').then(response => response.text()).then(data => {
+                    document.querySelector('.sensorStatusUpdate').textContent = 'OFF';
+                    document.querySelector('.sensorStatusUpdate').classList.add('status-off'); 
+                    document.querySelector('.sensorStatusUpdate').classList.remove('status-on');
+                });
+            }
         </script>
     </body>
 </html>
@@ -1277,7 +1401,13 @@ void sendHistoryToClient(uint8_t clientNum) {
                         
                         if(counterData.success && timeData.success && dateData.success) {
                             // Format the message to: HISTORY,counter,time,date
-                            String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeData.stringValue+ "," + dateData.stringValue;
+                            // String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeData.stringValue+ "," + dateData.stringValue;
+                            // webSocket.sendTXT(clientNum, historyMsg);
+                            // count++;
+
+
+                            String timeStr = timeData.stringValue;
+                            String historyMsg = "HISTORY, " + counterData.stringValue + ", " + timeStr + ", " + dateData.stringValue;
                             webSocket.sendTXT(clientNum, historyMsg);
                             count++;
                         }
@@ -1422,6 +1552,24 @@ void getWeatherData() {
     }
 }
 
+void handleEnableSensor() {
+  sensorEnabled = true;
+  digitalWrite(enablePin, HIGH);
+  server.send(200, "text/plain", "ON");
+}
+
+void handleDisableSensor() {
+  sensorEnabled = false;
+  digitalWrite(enablePin, LOW);
+  server.send(200, "text/plain", "OFF");
+}
+
+void handleStatus() {
+  String json = "{\"enabled\":" + String(sensorEnabled ? "true" : "false");
+  json += ",\"distance\":" + String(distance) + "}";
+  server.send(200, "application/json", json);
+}
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
     switch (type) {
         case WStype_CONNECTED:
@@ -1457,14 +1605,16 @@ void setup() {
     Serial.begin(115200);
     pinMode(trigPin, OUTPUT);
     pinMode(echoPin, INPUT);
+    pinMode(enablePin, OUTPUT);
+    digitalWrite(enablePin, HIGH);  // Start with sensor on
 
     // Connect to WiFi
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(1000);
-        Serial.println("Connecting to WiFi...");
+        Serial.println("WiFi??");
     }
-    Serial.println("Connected to WiFi!");
+    Serial.println("WiFi!!");
 
     // Configure NTP time
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -1472,14 +1622,14 @@ void setup() {
     // Start WebSocket server
     webSocket.begin();
     webSocket.onEvent(webSocketEvent);
-    Serial.println("WebSocket server started!");
+    Serial.println("WebSocket started!");
 
     // Start HTTP server to serve the HTML page
     server.on("/", HTTP_GET, []() {
         server.send(200, "text/html", htmlContent);
     });
 
-    Serial.print("IP Address: ");
+    Serial.print("IP: ");
     Serial.println(WiFi.localIP()); // Prints the IP address
 
     config.api_key = API_KEY;
@@ -1517,6 +1667,30 @@ void setup() {
         server.streamFile(file, "image/png");
         file.close();
     });
+
+    server.on("/HelveticaNeue-Roman.otf", HTTP_GET, []() {
+      File file = SPIFFS.open("/HelveticaNeue-Roman.otf", "r");
+      server.streamFile(file, "font/ttf");
+      file.close();
+  });
+
+  server.on("/NeueHaasDisplayRoman.ttf", HTTP_GET, []() {
+    File file = SPIFFS.open("/NeueHaasDisplayRoman.ttf", "r");
+    server.streamFile(file, "font/ttf");
+    file.close();
+  });
+
+  server.on("/ZilapMarine.ttf", HTTP_GET, []() {
+    File file = SPIFFS.open("/ZilapMarine.ttf", "r");
+    server.streamFile(file, "font/ttf");
+    file.close();
+  });
+
+  server.on("/sweep.html", HTTP_GET, []() {
+    File file = SPIFFS.open("/sweep.html", "r");
+    server.streamFile(file, "text/html");
+    file.close();
+  });
 
     server.on("/timer", []() {
         // Add these CORS headers
@@ -1563,6 +1737,10 @@ void setup() {
             server.send(200, "application/json", json);
         });
 
+        server.on("/enable", HTTP_GET, handleEnableSensor);
+        server.on("/disable", HTTP_GET, handleDisableSensor);
+        server.on("/status", HTTP_GET, handleStatus);
+
     getWeatherData();
 
     server.begin();
@@ -1577,21 +1755,22 @@ void loop() {
     webSocket.loop();  // Keep WebSocket running
     server.handleClient();  // Handle HTTP requests
 
-    long duration, distance;
+    if(sensorEnabled) {
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
 
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
+        duration = pulseIn(echoPin, HIGH);
+    }
 
-    duration = pulseIn(echoPin, HIGH);
-    distance = (duration / 2) / 29.1;
+    distance = (duration / 2) / 29.1; // This one should be around 15 cm for our case with a 30x30x30 cm box
 
     if (distance <= 10) {
-        currentState = 1;
+        currentState = 1; 
     } else {
-        currentState = 0;
+        currentState = 0; 
     }
 
     delay(100);
@@ -1683,6 +1862,16 @@ void loop() {
         myTimerStart = millis(); // Changed variable name
         Serial.println("Timer restarted");
     }
+
+    if (currentMillis - previousMillis >= interval) {
+        previousMillis = currentMillis;
+        
+        if (WiFi.status() != WL_CONNECTED) {
+          Serial.println("WiFi disconnected! Attempting reconnection...");
+          WiFi.disconnect();  // this line can help in stubborn cases
+          WiFi.begin(ssid, password);
+        }
+      }
 }
 
 int getCurrentPeriod() {
@@ -1760,3 +1949,5 @@ void handleData() {
   
   server.send(200, "application/json", json);
 }
+
+
