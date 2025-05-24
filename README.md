@@ -1,2 +1,4 @@
-# LaxonarTest
-Testing HTML, CSS, Arduino, SQL.
+# Laxonar
+TTT4270 Project V25
+
+HTML, CSS, Javascript, C++, Firebase.
